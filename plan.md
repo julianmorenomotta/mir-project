@@ -71,16 +71,16 @@
 ### 0.2 Python Environment
 - [x] Pin Python version (recommended: 3.10)
 - [x] Create `environment.yml` (conda) or `requirements.txt` + `pyproject.toml`
-- [ ] Verify Banquet core package imports cleanly from `third_party/` (run from project root):
+- [x] Verify Banquet core package imports cleanly from `third_party/` (run from project root):
   ```bash
   python -c "import sys; sys.path.insert(0, 'third_party/query-bandit'); import core; print('OK', core.__file__)"
   ```
   > Note: the package name is `core`, not `bandit`. It is not installed — it must be on `sys.path` first.
-- [ ] Add `torchaudio`, `numpy`, `scikit-learn`, `librosa`, `soundfile` to dependencies
+- [x] Add `torchaudio`, `numpy`, `scikit-learn`, `librosa`, `soundfile` to dependencies
 - [ ] Document GPU requirements and tested CUDA version in README
 
 ### 0.3 Project Structure
-- [ ] Create directory layout:
+- [x] Create directory layout:
   ```
   mir-project/
   ├── third_party/
@@ -98,10 +98,10 @@
   ├── plan.md             # this file
   └── proposal.md
   ```
-- [ ] Add `src/__init__.py` and stub modules matching the planned architecture
+- [x] Add `src/__init__.py` and stub modules matching the planned architecture
 - [ ] Set up a basic logging config (use Python `logging` or `wandb`)
 
-### 0.4 Continuous Integration (optional but recommended)
+### 0.4 Continuous Integration (optional)
 - [ ] Add a GitHub Actions workflow that runs `pytest` on push
 - [ ] Add a `tests/` directory with at least one smoke test for data loading
 - [ ] Add a smoke test that verifies `core` imports correctly from `third_party/` — catches broken clones for new team members
@@ -112,7 +112,6 @@
 
 ### 1.1 Data Acquisition
 - [ ] Obtain bottlenose dolphin signature whistle dataset (Sarasota Dolphin Research Program)
-  - [ ] Confirm license and usage terms
   - [ ] Document expected file format (wav/flac, sample rate, channel count)
   - [ ] Place raw files in `data/raw/dolphins/`
 - [ ] (Optional) Obtain macaque coo-call dataset — only if time permits for generalization analysis
