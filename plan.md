@@ -111,6 +111,7 @@
 ## Phase 1 — Data Pipeline
 
 ### 1.1 Data Acquisition
+ Data can be obtained from [here](https://seamap.env.duke.edu/dataset/563)
 - [ ] Obtain bottlenose dolphin signature whistle dataset (Sarasota Dolphin Research Program)
   - [ ] Document expected file format (wav/flac, sample rate, channel count)
   - [ ] Place raw files in `data/raw/dolphins/`
