@@ -13,6 +13,12 @@ dependencies = [
     "librosa>=0.11.0",
     "soundfile>=0.13.1",
     "wandb>=0.25.0",
+    "pandas>=3.0.1",
+    "lightning>=2.6.1",
+    "omegaconf>=2.3.0",
+    "torch-audiomentations>=0.12.0",
+    "hear21passt>=0.0.26",
+    "fire>=0.7.1",
 ]
 
 
