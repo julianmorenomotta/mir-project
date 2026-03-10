@@ -1,0 +1,25 @@
+[project]
+name = "ml-base"
+version = "0.1.0"
+description = "Base ML environment for GPU projects with PyTorch CUDA 12.6"
+requires-python = "==3.12.*"
+dependencies = [
+    "torch==2.9.1",
+    "torchaudio==2.9.1",
+    "torchcodec==0.8.1",
+    "accelerate>=0.26.0",
+    "numpy>=2.3.5",
+    "scikit-learn>=1.8.0",
+    "librosa>=0.11.0",
+    "soundfile>=0.13.1",
+    "wandb>=0.25.0",
+]
+
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu126"
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"

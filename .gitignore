@@ -1,0 +1,5 @@
+# thrid party
+/third_party/*
+
+# venv
+/venv/
