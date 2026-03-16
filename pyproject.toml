@@ -1,7 +1,7 @@
 [project]
-name = "ml-base"
+name = "mir-project"
 version = "0.1.0"
-description = "Base ML environment for GPU projects with PyTorch CUDA 12.6"
+description = "ML environment PyTorch CUDA 12.6 for the final MIR project"
 requires-python = "==3.12.*"
 dependencies = [
     "torch==2.9.1",

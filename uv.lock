@@ -530,7 +530,7 @@ wheels = [
 ]
 
 [[package]]
-name = "ml-base"
+name = "mir-project"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
@@ -1388,7 +1388,7 @@ dependencies = [
     { name = "torch", marker = "platform_machine == 'aarch64' and platform_python_implementation == 'CPython' and sys_platform == 'linux'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cu126/torchaudio-2.9.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3a15dbc22c44c3be5e4edc78745ed1d0d0ca7b1ab268c64fa7f0cc039a01e6f1" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torchaudio-2.9.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3a15dbc22c44c3be5e4edc78745ed1d0d0ca7b1ab268c64fa7f0cc039a01e6f1" },
 ]
 
 [[package]]
@@ -1405,8 +1405,8 @@ dependencies = [
     { name = "torch", marker = "platform_machine != 'aarch64' or platform_python_implementation != 'CPython' or sys_platform != 'linux'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cu126/torchaudio-2.9.1%2Bcu126-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:a5e45f4b20a8e4ea6a920792c21203cc2eb69519aa0433e081d107287c93e1c4" },
-    { url = "https://download.pytorch.org/whl/cu126/torchaudio-2.9.1%2Bcu126-cp312-cp312-win_amd64.whl", hash = "sha256:7ba65b9bdf3fb124689c8f9050ff2cd0697f8083dd5e64b47a75e7b797418448" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torchaudio-2.9.1%2Bcu126-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:a5e45f4b20a8e4ea6a920792c21203cc2eb69519aa0433e081d107287c93e1c4" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torchaudio-2.9.1%2Bcu126-cp312-cp312-win_amd64.whl", hash = "sha256:7ba65b9bdf3fb124689c8f9050ff2cd0697f8083dd5e64b47a75e7b797418448" },
 ]
 
 [[package]]

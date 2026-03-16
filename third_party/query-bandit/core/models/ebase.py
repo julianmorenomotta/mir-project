@@ -278,11 +278,15 @@ class EndToEndLightningSystem(pl.LightningModule):
         pad = (n_chunks - 1) * hop_size + chunk_size - n_samples
 
         # print(audio.shape)
+        left_pad = 2 * overlap
+        right_pad = 2 * overlap + pad
+        pad_mode = "reflect" if (left_pad < n_samples and right_pad < n_samples) else "constant"
         audio = F.pad(
             audio,
-            pad=(2 * overlap, 2 * overlap + pad),
-            mode="reflect"
-        )
+            pad=(left_pad, right_pad),
+            mode=pad_mode,
+            value=0
+)
         padded_length = audio.shape[-1]
         audio = audio.reshape(c, 1, -1, 1)
         
