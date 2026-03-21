@@ -9,18 +9,78 @@
 ---
 
 ## Table of Contents
-1. [Project Overview](#1-project-overview)
-2. [Milestone Map](#2-milestone-map)
-3. [Phase 0 — Environment & Repository Setup](#phase-0--environment--repository-setup)
-4. [Phase 1 — Data Pipeline](#phase-1--data-pipeline)
-5. [Phase 2 — Baselines](#phase-2--baselines)
-6. [Phase 3 — Point-Query Banquet Adaptation](#phase-3--point-query-banquet-adaptation)
-7. [Phase 4 — Training & Evaluation](#phase-4--training--evaluation)
-8. [Phase 5 — Analysis & Deliverables](#phase-5--analysis--deliverables)
-9. [Open Questions & Decisions Log](#open-questions--decisions-log)
-10. [References](#references)
+1. [Current Main Focus (March 2026)](#0-current-main-focus-march-2026)
+2. [Project Overview](#1-project-overview)
+3. [Milestone Map](#2-milestone-map)
+4. [Phase 0 — Environment & Repository Setup](#phase-0--environment--repository-setup)
+5. [Phase 1 — Data Pipeline](#phase-1--data-pipeline)
+6. [Phase 2 — Baselines](#phase-2--baselines)
+7. [Phase 3 — Point-Query Banquet Adaptation](#phase-3--point-query-banquet-adaptation)
+8. [Phase 4 — Training & Evaluation](#phase-4--training--evaluation)
+9. [Phase 5 — Analysis & Deliverables](#phase-5--analysis--deliverables)
+10. [Open Questions & Decisions Log](#open-questions--decisions-log)
+11. [References](#references)
 
 ---
+
+## 0. Current Main Focus (March 2026)
+
+**Priority override:** The active objective right now is to reproduce **Banquet Q:ALL evaluation for fold 5** using pretrained checkpoints in `third_party/query-bandit`. Until this is complete, this workstream takes priority over the longer bioacoustics adaptation phases below.
+
+**Target outcome (first pass):**
+- Directional reproduction of fold-5 Q:ALL results using `models/ev-pre-aug.ckpt`
+- Paper-style SNR reporting generated from saved inference audio
+- Clear documentation of any reproducibility deltas
+
+**Included in scope now:**
+- Evaluation-only reproduction path
+- Minimal required MoisesDB preprocessing to match query-bandit expected layout
+- Fold-5 only
+
+**Out of scope now:**
+- Any model training/fine-tuning
+- Multi-fold averaging
+- Exact-number replication requirement (directional match is acceptable for this pass)
+
+### 0.1 Immediate Execution Checklist
+
+#### Phase A: Prepare data root expected by query-bandit
+- [x] Create local working root `${DATA_ROOT}/moisesdb` with query-bandit-compatible structure
+- [ ] Generate required artifacts from raw/canonical MoisesDB using `third_party/query-bandit/core/data/moisesdb/npyify.py`:
+  - [x] `metadata.csv` via `consolidate_metadata()`
+  - [x] `npy2/` via `convert_to_npy()`
+  - [x] `stems.csv` via `consolidate_stems()`
+  - [x] `durations.csv` via `get_durations()`
+  - [x] `npyq/` onset queries via `get_query_from_onset()` with `query-10s`
+- [ ] Copy published split/query pairing files into the working root:
+  - [ ] `third_party/query-bandit/reproducibility/splits.csv`
+  - [ ] `third_party/query-bandit/reproducibility/test_indices.csv`
+
+#### Phase B: Make pretrained eval config runnable locally
+- [ ] Start from `third_party/query-bandit/expt/setup-c/bandit-everything-query-pre-d-aug.yml`
+- [ ] Add an evaluation-safe override for `third_party/query-bandit/config/models/bandit-query-pre.yml` so model init does not require the original stage-1 encoder path
+- [ ] Standardize env vars for reproducibility:
+  - [ ] `CONFIG_ROOT=third_party/query-bandit/config`
+  - [ ] `DATA_ROOT=<parent-of-local-moisesdb-working-root>`
+  - [ ] `LOG_ROOT=<writable-local-output-root>`
+- [ ] Run smoke load test: instantiate model + load `models/ev-pre-aug.ckpt` successfully
+
+#### Phase C: Run fold-5 inference and compute paper-style metrics
+- [ ] Run `query_inference` (not only `query_test`) to produce audio outputs for notebook-based reporting
+- [ ] Confirm outputs are saved under Lightning logger tree (`audio/<song>/<stem>.wav`)
+- [ ] Run `third_party/query-bandit/notebooks/evaluate_ev_query.ipynb` on local outputs
+- [ ] (Optional) Run `third_party/query-bandit/notebooks/evaluate_ev_query_merged.ipynb` for coarse merged reporting
+- [ ] Produce fold-5 summary table and compare directionally to paper claims
+
+#### Phase D: Reproducibility validation and notes
+- [ ] Verify final working root contains: `metadata.csv`, `stems.csv`, `durations.csv`, `splits.csv`, `test_indices.csv`, `npy2/`, `npyq/`
+- [ ] Record exact command/config/checkpoint identifiers used
+- [ ] Document gaps vs paper values and suspected causes (query extraction variance, path/layout mismatches, checkpoint/config pairing)
+
+### 0.2 Success Criteria for this focus
+- [ ] End-to-end run succeeds for fold-5 Q:ALL using pretrained checkpoint
+- [ ] Notebook-compatible outputs and summary metrics are generated
+- [ ] Results are directionally aligned with paper trends, especially weaker long-tail stems
 
 ## 1. Project Overview
 
