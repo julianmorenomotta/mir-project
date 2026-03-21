@@ -1,7 +1,7 @@
 # Implementation Plan — Query-Conditioned Bioacoustic Source Separation
 > **How to use this document**
 > - This file is the single source of truth for backlog, task assignment, and progress tracking.
-> - Mark tasks with `[x]` when done. Add your initials and date in parentheses, e.g. `[x] (julia, 2026-03-10)`.
+> - Mark tasks with `[x]` when done. Add your initials and date in parentheses, e.g. `[x] (julian, 2026-03-10)`.
 > - Keep sub-tasks granular enough that a teammate can pick one up independently.
 > - Never delete a completed item — it is the audit trail of what has already been done.
 > - If a task is blocked, prepend `[BLOCKED]` to its line and add a note below it explaining why.
@@ -275,14 +275,6 @@
   - [ ] Discussion: where it works, where it fails, domain transfer challenges
   - [ ] Conclusion & future work (mention hyperellipsoidal extension as natural next step)
 - [ ] Include evaluation table and representative spectrograms as figures
-
-### 5.4 Stretch Goal — Hyperellipsoidal Query Extension
-> Only pursue if the core system is stable, performing well, and time remains.
-- [ ] Review Watcharasupat & Lerch (2025) design spec carefully
-- [ ] Implement hyperellipsoidal query representation (flatten `(c, K)` to `R^{D(D+3)/2}`)
-- [ ] Widen FiLM input layer to accept the higher-dimensional query
-- [ ] Precompute enclosing/excluding ellipsoid bounds per training clip
-- [ ] Train and evaluate; compare against point-query baseline
 
 ### 5.5 Code Release
 - [ ] Clean up and document all `src/` modules (docstrings, type hints)
