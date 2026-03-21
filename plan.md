@@ -3,7 +3,7 @@
 > - This file is the single source of truth for backlog, task assignment, and progress tracking.
 > - Mark tasks with `[x]` when done. Add your initials and date in parentheses, e.g. `[x] (julia, 2026-03-10)`.
 > - Keep sub-tasks granular enough that a teammate can pick one up independently.
-> - Never delete a completed item — it is the audit trail of what has already been done.
+> - Never delete a completed item.
 > - If a task is blocked, prepend `[BLOCKED]` to its line and add a note below it explaining why.
 
 ---
@@ -14,44 +14,33 @@
 3. [Phase 0 — Environment & Repository Setup](#phase-0--environment--repository-setup)
 4. [Phase 1 — Data Pipeline](#phase-1--data-pipeline)
 5. [Phase 2 — Baselines](#phase-2--baselines)
-6. [Phase 3 — Point-Query Banquet Adaptation](#phase-3--point-query-banquet-adaptation)
+6. [Phase 3 — Minimal Banquet Adaptation to Bioacoustics](#phase-3--minimal-banquet-adaptation-to-bioacoustics)
 7. [Phase 4 — Training & Evaluation](#phase-4--training--evaluation)
 8. [Phase 5 — Analysis & Deliverables](#phase-5--analysis--deliverables)
 9. [Open Questions & Decisions Log](#open-questions--decisions-log)
 10. [References](#references)
 
+
+
 ---
 
 ## 1. Project Overview
 
-**Goal:** Adapt the Banquet query-conditioned source separation framework (Watcharasupat & Lerch, 2024) to bioacoustic recordings, using bottlenose dolphin signature whistles as the primary testbed. The system accepts a short enrollment clip of the target individual, encodes it via a frozen PaSST model, and uses the resulting embedding to condition a bandsplit decoder via FiLM — steering the network to extract the matching individual and suppress others.
+**Goal:** Adapt the Banquet query-conditioned source separation framework (Watcharasupat & Lerch, 2024) to bioacoustic recordings, using a bio-acustics dataset (eg. bottlenose dolphin signature whistles or macaque vocalizations TBD) as the primary testbed. The system accepts a short enrollment clip of the target individual, encodes it via a frozen PaSST model, and uses the resulting embedding to condition a bandsplit decoder via FiLM — steering the network to extract the matching individual and suppress others.
 
 **Scope (POC):**
-- Species: **bottlenose dolphins** (primary); macaques and bats are secondary, pursued only if time permits
+- Adaptation of the original query bandit to a new dataset (Bioacustics)
 - Task: two-speaker mixture separation
 - Primary metric: SI-SDR / SI-SDRi; secondary: individual identity classification accuracy on separated outputs
 
-**Core deliverable:** A working query-conditioned separation model for dolphin vocalizations, benchmarked against BioCPPNet and a Conv-TasNet query baseline.
+**Core deliverable:** A working query-conditioned separation model for dolphin vocalizations, benchmarked against BioCPPNet and a Conv-TasNet query baseline, built via minimal adaptation of Banquet interfaces.
 
-**Stretch goal:** Hyperellipsoidal region-based query extension (Watcharasupat & Lerch, 2025) — only if the core system is stable and time allows.
+**Banquet source:** `github.com/kwatcharasupat/query-bandit` — cloned into `third_party/query-bandit/`
 
-**Banquet source:** `github.com/kwatcharasupat/query-bandit` — cloned into `third_party/query-bandit/` (read-only reference; we import from it, not modify it)
+**Implementation strategy (locked for P0):** Minimal adaptation. Reuse Banquet model/loss/inference components as-is, and add only local glue code (dataset, datamodule, training entrypoint shim, configs) needed for non-music bioacoustic data.
 
----
-
-## 2. Milestone Map
-
-| Milestone | Description | Target | Status |
-|-----------|-------------|--------|--------|
-| M0 | Environment set up, Banquet cloned into third_party/, smoke test passes | Week 1 | ⬜ |
-| M1 | Raw dolphin data acquired and verified | Week 1 | ⬜ |
-| M2 | Mixture generation pipeline validated | Week 2 | ⬜ |
-| M3 | BioCPPNet baseline trained and evaluated | Week 3 | ⬜ |
-| M4 | Point-query Banquet model trained and evaluated | Week 5 | ⬜ |
-| M5 | Full evaluation table + qualitative analysis | Week 6 | ⬜ |
-| M6 | Final report and code freeze | Week 7 | ⬜ |
-
-> Status key: ⬜ not started · 🔄 in progress · ✅ done · 🚫 blocked
+### Resources
+- [Datasets](https://github.com/earthspecies/library?tab=readme-ov-file)
 
 ---
 
@@ -177,58 +166,61 @@
 
 ---
 
-## Phase 3 — Banquet Adaptation to Bioacoustics
+## Phase 3 — Minimal Banquet Adaptation to Bioacoustics
 
-> **Goal:** Fork and adapt the Banquet codebase to work on bioacoustic data. No architectural changes — only the data pipeline and query extraction routine are replaced.
+> **Goal:** Keep `third_party/query-bandit/` unchanged for P0. Adapt to bioacoustics by implementing only minimal local glue code around Banquet's existing interfaces.
 
-### 3.1 Codebase Audit
-- [ ] Read through `third_party/query-bandit/` — identify the key files:
-  - [ ] Bandsplit encoder/decoder model
-  - [ ] FiLM conditioning module
-  - [ ] Training loop and loss
-  - [ ] Data loading and query extraction logic
-- [ ] Document which components we reuse as-is vs. which we need to adapt in `src/`
-- [ ] Add `third_party/query-bandit` to `sys.path` in a shared `src/utils/paths.py` so we can import from it cleanly
+### 3.1 Interface Audit (Contract First)
+- [ ] Read through `third_party/query-bandit/` and lock the required batch contract for training/inference:
+  - [ ] Required fields: `mixture`, `sources`, `query`, `metadata`, `estimates`
+  - [ ] Target convention: `sources["target"]` and `estimates["target"]`
+  - [ ] Required tensor shape conventions for `(B, C, T)` audio
+- [ ] Document exactly which Banquet components are reused unchanged vs. wrapped in local code
+- [ ] Add `third_party/query-bandit` to `sys.path` in `src/utils/paths.py` for clean imports
 
-### 3.2 Model Wrapper
-- [ ] Create `src/models/banquet_bio.py` — thin wrapper that imports the Banquet model from `third_party/` and exposes a clean interface for our training loop
-- [ ] Confirm the wrapper is importable and the Banquet model instantiates correctly
+### 3.2 Local Data Adapter (New Code Only)
+- [ ] Write `src/data/query_bio/dataset.py` implementing a non-music dataset that emits Banquet-compatible samples
+- [ ] Write `src/data/query_bio/datamodule.py` with the same constructor pattern used by Banquet datamodules (`data_root`, `batch_size`, `num_workers`, `train_kwargs`, `val_kwargs`, `test_kwargs`, `datamodule_kwargs`)
+- [ ] Confirm train/val/test loaders work with dolphin mixtures and held-out query clips
+- [ ] Add smoke test: one real batch through the model forward pass
 
-### 3.3 Data Loader Replacement
-- [ ] Write `src/data/dataset.py` as a drop-in replacement for Banquet's music dataloader
-- [ ] Confirm the dataloader returns: `(mixture, clean_source, query_clip)` triplets with the shapes the Banquet model expects
-- [ ] Smoke test: one forward pass through the full model with a real dolphin batch
+### 3.3 Local Training Entrypoint Shim
+- [ ] Create `src/train_query_bandit.py` as a thin local runner that mirrors Banquet training setup but registers our bio datamodule
+- [ ] Keep `third_party/query-bandit/train.py` unmodified in P0
+- [ ] Support checkpoint resume/fine-tune via `ckpt_path`
+- [ ] Support model config options `pretrain_encoder` and `freeze_encoder`
+- [ ] Add minimal CLI examples to README/notes for train/validate/inference
 
-### 3.3 PaSST Query Encoder
-- [ ] Verify PaSST model loads correctly (`hear-eval-kit` or direct weights)
-- [ ] Write `src/embeddings/passt_encoder.py`:
-  - [ ] Load frozen PaSST (no gradient updates)
-  - [ ] Encode a query enrollment clip → 768-dim embedding vector
-  - [ ] Confirm output shape and dtype
-- [ ] Evaluate whether PaSST embeddings separate dolphin individuals: plot t-SNE/UMAP in `notebooks/02_embedding_exploration.ipynb`
-- [ ] Write unit test: same clip → same embedding (determinism check)
+### 3.4 Config Layer for Bioacoustics
+- [ ] Create `configs/query_bandit/models/bandit-query-pre-bio.yml`
+- [ ] Create `configs/query_bandit/data/bio-query-d.yml`
+- [ ] Create `configs/query_bandit/expt/bio-query-pre-d.yml` linking model/data/loss/optim/trainer
+- [ ] Create one tiny overfit/smoke config for fast end-to-end validation
 
-### 3.4 FiLM Conditioning
-- [ ] Confirm existing Banquet FiLM layer accepts the 768-dim PaSST embedding
-- [ ] Implement `src/models/film.py` — standalone FiLM module:
-  - [ ] `gamma, beta = FC(query_vec)` where FC is a small MLP
-  - [ ] `output = gamma * features + beta`
-- [ ] Unit test: FiLM layer output shape matches bandsplit bottleneck feature shape
+### 3.5 Query Encoder and Assumptions (P0 Scope)
+- [ ] Keep frozen PaSST query encoder for P0 baseline
+- [ ] Evaluate embedding quality on dolphins (`notebooks/02_embedding_exploration.ipynb`)
+- [ ] Document known assumptions and mitigations:
+  - [ ] Audio sample rate expectation (44.1 kHz in current Banquet configs)
+  - [ ] Query duration expectation (10 s in current setup)
+  - [ ] Local preprocessing/resampling policy for dolphin data
+- [ ] Defer query-encoder fine-tuning/replacement until after first stable baseline run
 
 ---
 
 ## Phase 4 — Training & Evaluation
 
 ### 4.1 Loss Function
-- [ ] Implement `src/losses/l1snr.py` — Multichannel L1SNR loss (carry over from Banquet)
-- [ ] Unit test: loss decreases for a perfect prediction
+- [ ] Reuse Banquet L1SNR-based losses from `third_party/query-bandit` via config (no local reimplementation in P0)
+- [ ] Add one integration test confirming loss computes on a dolphin batch without shape/key mismatches
 
 ### 4.2 Training
-- [ ] Write/adapt `src/train.py`:
-  - [ ] Config-driven via YAML (`configs/banquet_bio_dolphins.yaml`)
+- [ ] Implement and use `src/train_query_bandit.py` (minimal shim)
+  - [ ] Config-driven via YAML (`configs/query_bandit/expt/bio-query-pre-d.yml`)
   - [ ] Log loss curves to `wandb` or tensorboard
   - [ ] Save checkpoints to `checkpoints/`
   - [ ] Implement early stopping on validation SI-SDRi
+- [ ] Run at least one training run from pretrained weights and one from scratch for comparison
 - [ ] Train on dolphin mixtures
 - [ ] Save best checkpoint and training log
 
@@ -301,7 +293,8 @@
 | 2 | Should we use the original BioCPPNet codebase or reimplement from scratch? | TBD — depends on code availability | — | — |
 | 3 | How long should enrollment clips be (PaSST expects ~10 s input; real recordings may be shorter)? | TBD | — | — |
 | 4 | Number of mixtures per split (N_train / N_val / N_test)? | Suggested 10k/1k/1k — confirm with team | — | — |
-| 5 | Does PaSST generalize well to dolphin whistles out of the box, or will we need fine-tuning? | TBD — assess via t-SNE of embeddings before training (Phase 3.3) | — | — |
+| 5 | Does PaSST generalize well to dolphin whistles out of the box, or will we need fine-tuning? | P0 decision: keep frozen PaSST baseline first; revisit after initial results | Team | 2026-03-16 |
+| 6 | Should we modify Banquet internals now or use a minimal local adapter? | Use minimal local adapter for P0; keep `third_party/query-bandit/` unchanged | Team | 2026-03-16 |
 
 ---
 
