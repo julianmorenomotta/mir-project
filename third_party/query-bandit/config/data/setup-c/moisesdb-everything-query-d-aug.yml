@@ -1,6 +1,11 @@
+inference_kwargs:
+  chunk_size_seconds: 6.0
+  hop_size_seconds: 0.5
+  batch_size: 12
+  fs: 44100
 data_root: ${oc.env:DATA_ROOT}/moisesdb
 cls: MoisesDataModule
-batch_size: 4
+batch_size: 1
 effective_batch_size: null
 num_workers: 8
 train_kwargs:
@@ -114,4 +119,8 @@ val_kwargs:
   query_file: "query-10s"
 test_kwargs:
   npy_memmap: true
+  query_file: query-10s
+  query_size_seconds: 10.0
+  chunk_size_seconds: 6.0
+  hop_size_seconds: 6.0
 n_channels: 2
