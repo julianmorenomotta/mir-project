@@ -14,7 +14,9 @@ from torch.utils.data import Dataset, DataLoader, IterableDataset
 
 
 def from_datasets(
-    train_dataset: Optional[Union[Dataset, Sequence[Dataset], Mapping[str, Dataset]]] = None,
+    train_dataset: Optional[
+        Union[Dataset, Sequence[Dataset], Mapping[str, Dataset]]
+    ] = None,
     val_dataset: Optional[Union[Dataset, Sequence[Dataset]]] = None,
     test_dataset: Optional[Union[Dataset, Sequence[Dataset]]] = None,
     predict_dataset: Optional[Union[Dataset, Sequence[Dataset]]] = None,
@@ -25,21 +27,28 @@ def from_datasets(
 
     def dataloader(ds: Dataset, shuffle: bool = False) -> DataLoader:
         shuffle &= not isinstance(ds, IterableDataset)
-        return DataLoader(
-            ds,
+
+        loader_kwargs = dict(
+            dataset=ds,
             batch_size=batch_size,
             shuffle=shuffle,
             num_workers=num_workers,
-            pin_memory=True,
-            prefetch_factor=4,
-            persistent_workers=True,
+            pin_memory=False,
+            persistent_workers=(num_workers > 0),
         )
+
+        if num_workers > 0:
+            loader_kwargs["prefetch_factor"] = 2
+
+        return DataLoader(**loader_kwargs)
 
     def train_dataloader() -> TRAIN_DATALOADERS:
         assert train_dataset
 
         if isinstance(train_dataset, Mapping):
-            return {key: dataloader(ds, shuffle=True) for key, ds in train_dataset.items()}
+            return {
+                key: dataloader(ds, shuffle=True) for key, ds in train_dataset.items()
+            }
         if isinstance(train_dataset, Sequence):
             return [dataloader(ds, shuffle=True) for ds in train_dataset]
         return dataloader(train_dataset, shuffle=True)
@@ -67,13 +76,17 @@ def from_datasets(
 
     candidate_kwargs = {"batch_size": batch_size, "num_workers": num_workers}
     accepted_params = inspect.signature(LightningDataModule.__init__).parameters
-    accepts_kwargs = any(param.kind == param.VAR_KEYWORD for param in accepted_params.values())
+    accepts_kwargs = any(
+        param.kind == param.VAR_KEYWORD for param in accepted_params.values()
+    )
     if accepts_kwargs:
         special_kwargs = candidate_kwargs
     else:
         accepted_param_names = set(accepted_params)
         accepted_param_names.discard("self")
-        special_kwargs = {k: v for k, v in candidate_kwargs.items() if k in accepted_param_names}
+        special_kwargs = {
+            k: v for k, v in candidate_kwargs.items() if k in accepted_param_names
+        }
 
     datamodule = LightningDataModule(**datamodule_kwargs, **special_kwargs)
     if train_dataset is not None:

@@ -57,12 +57,12 @@
   - [x] `third_party/query-bandit/reproducibility/test_indices.csv`
 
 #### Phase B: Make pretrained eval config runnable locally
-- [ ] Start from `third_party/query-bandit/expt/setup-c/bandit-everything-query-pre-d-aug.yml`
-- [ ] Add an evaluation-safe override for `third_party/query-bandit/config/models/bandit-query-pre.yml` so model init does not require the original stage-1 encoder path
-- [ ] Standardize env vars for reproducibility:
-  - [ ] `CONFIG_ROOT=third_party/query-bandit/config`
-  - [ ] `DATA_ROOT=<parent-of-local-moisesdb-working-root>`
-  - [ ] `LOG_ROOT=<writable-local-output-root>`
+- [x] Start from `third_party/query-bandit/expt/setup-c/bandit-everything-query-pre-d-aug.yml`
+- [x] Add an evaluation-safe override for `third_party/query-bandit/config/models/bandit-query-pre.yml` so model init does not require the original stage-1 encoder path
+- [x] Standardize env vars for reproducibility:
+  - [x] `CONFIG_ROOT=third_party/query-bandit/config`
+  - [x] `DATA_ROOT=<parent-of-local-moisesdb-working-root>`
+  - [x] `LOG_ROOT=<writable-local-output-root>`
 - [ ] Run smoke load test: instantiate model + load `models/ev-pre-aug.ckpt` successfully
 
 #### Phase C: Run fold-5 inference and compute paper-style metrics
