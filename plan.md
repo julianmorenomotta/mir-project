@@ -193,9 +193,9 @@
 - [x] Ensure metadata tracks filename lineage (`macaque_raw` → stem WAV → `metadata["stem"]`) so IDs stay queryable throughout Banquet batches. Metadata now stores raw-relative placements plus resolved stem/mixture paths.
 
 ### 1.4 Build Query Clips
-- [ ] Consume only the held-out 20% pool to create ~10 s query clips per individual (multiple clips each) with short inter-call gaps.
-- [ ] Resample to 44.1 kHz on save, storing under `macaque_dataset/queries/<individual_id>/query_clip_##.wav`.
-- [ ] Verify no query clip reuses calls from the mixture pool and log the mapping for reproducibility.
+- [x] Consume only the held-out 20% pool to create ~10 s query clips per individual (multiple clips each) with short inter-call gaps. Implemented via `src/data/macaque/query_builder.py` + `src/tools/build_macaque_queries.py`.
+- [x] Resample to 44.1 kHz on save, storing under `macaque_dataset/queries/<individual_id>/query_clip_##.wav`.
+- [x] Verify no query clip reuses calls from the mixture pool and log the mapping for reproducibility. Metadata per clip now records every contributing raw file plus RNG seed.
 
 ### 1.5 Implement `MacaqueDataset`
 - [ ] Create `core/data/macaque/dataset.py` that loads the directory tree above and returns Banquet-style batches:
