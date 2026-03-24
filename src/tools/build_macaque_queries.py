@@ -6,21 +6,15 @@ import argparse
 import json
 import random
 import sys
+import torch  # noqa: F401 (used for typing and ensuring dependency presence)
+import torchaudio
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Sequence
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
-
-try:
-    import torch  # noqa: F401 (used for typing and ensuring dependency presence)
-    import torchaudio
-except ImportError as exc:  # pragma: no cover
-    raise SystemExit(
-        "torch and torchaudio must be installed before running this script."
-    ) from exc
 
 from data.macaque.query_builder import QueryBuilder
 
