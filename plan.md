@@ -197,14 +197,14 @@
 - [x] Resample to 44.1 kHz on save, storing under `macaque_dataset/queries/<individual_id>/query_clip_##.wav`.
 - [x] Verify no query clip reuses calls from the mixture pool and log the mapping for reproducibility. Metadata per clip now records every contributing raw file plus RNG seed.
 
-### 1.5 Implement `MacaqueDataset`
-- [ ] Create `core/data/macaque/dataset.py` that loads the directory tree above and returns Banquet-style batches:
+-### 1.5 Implement `MacaqueDataset`
+- [x] Create `core/data/macaque/dataset.py` that loads the directory tree above and returns Banquet-style batches: `MacaqueDataset` lives in `src/data/macaque/dataset.py` and produces mixture/target/query tensors via `input_dict`.
   - `"mixture"` tensor shaped `[1, samples]` at 44.1 kHz.
   - `"metadata"["stem"]` listing the speaker IDs.
   - Randomly choose one of the two stems as the current target, load its ground-truth audio tensor `[1, samples]`, and attach under `"target"`.
   - Sample a random query clip for that individual, tiling or truncating to exactly 441 000 samples (10 s) while keeping `[1, samples]` shape.
-- [ ] Enforce offline sample-rate conversion (no resampling in __getitem__).
-- [ ] Add lightweight tests to confirm tensor shapes and metadata integrity.
+- [x] Enforce offline sample-rate conversion (no resampling in __getitem__). Dataset raises if any WAV deviates from 44.1 kHz so all conversions stay offline.
+- [x] Add lightweight tests to confirm tensor shapes and metadata integrity (`tests/test_macaque_dataset.py`).
 
 ### 1.6 Implement `MacaqueDataModule`
 - [ ] Add `core/data/macaque/datamodule.py`, mirroring `MoisesDataModule` patterns for train/val/test dataloaders.
