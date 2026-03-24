@@ -6,3 +6,6 @@
 
 # models
 /models/
+
+# local environment files
+.env
