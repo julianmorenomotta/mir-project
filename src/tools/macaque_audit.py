@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""Audit macaque raw clips and pre-select query pools.
-
-This script walks the macaque_raw directory, validates file formats, logs
-aggregate statistics per individual, and deterministically assigns a held-out
-query pool. Outputs include CSV summaries (inventory, query pool membership,
-and resample plan) plus a JSON metadata blob that records the random seed and
-parameter choices.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -50,13 +40,13 @@ def parse_args() -> argparse.Namespace:
         "--raw-root",
         type=Path,
         default=DEFAULT_RAW_ROOT,
-        help="Path to data/macaque_raw containing train/ and val/ folders.",
+        help="Path to data/macaque_raw containing train/ and valid/ folders.",
     )
     parser.add_argument(
         "--splits",
         nargs="+",
         default=list(DEFAULT_SPLITS),
-        help="Split names to inspect (default: train val).",
+        help="Split names to inspect (default: train valid).",
     )
     parser.add_argument(
         "--seed",
