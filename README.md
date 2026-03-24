@@ -19,3 +19,10 @@ python third_party/query-bandit/train.py query_test --config_path third_party/qu
   - Increase `inference_kwargs.batch_size` gradually (e.g., `1 -> 2 -> 4 -> 8 -> 12`) while monitoring GPU memory.
   - Increase `num_workers` in `moisesdb-test.yml` to improve throughput.
   - Optionally re-enable `pin_memory` in `core/data/base.py` if memory is no longer a bottleneck.
+
+## Building Bioacoustics dataset
+
+```bash
+python src/tools/build_macaque_sessions.py --sessions-per-split "train=500" "valid=100"
+```
+

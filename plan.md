@@ -168,53 +168,66 @@
 
 ---
 
-## Phase 1 — Data Pipeline
+## Phase 1 — Data Pipeline (Macaque v1)
 
-### 1.1 Data Acquisition
- Data can be obtained from [here](https://seamap.env.duke.edu/dataset/563)
-- [ ] Obtain bottlenose dolphin signature whistle dataset (Sarasota Dolphin Research Program)
-  - [ ] Document expected file format (wav/flac, sample rate, channel count)
-  - [ ] Place raw files in `data/raw/dolphins/`
-- [ ] (Optional) Obtain macaque coo-call dataset — only if time permits for generalization analysis
-  - [ ] Place raw files in `data/raw/macaques/`
-- [ ] (Optional) Obtain Egyptian fruit bat vocalizations — only if time permits
-  - [ ] Place raw files in `data/raw/bats/`
-- [ ] Write `src/data/verify_raw.py` — checksums / file-count sanity checks
+### 1.1 Audit the Raw Data
+- [x] Create `src/tools/macaque_audit.py` to enumerate `data/macaque_raw/train|val` by individual ID and split (run via `python src/tools/macaque_audit.py`).
+- [x] Confirm which files need conversion (e.g. 24 kHz mono WAV), capture duration statistics, and emit `macaque_raw/inventory.csv` with per-individual counts + total duration.
+- [x] Apply a fixed RNG seed to reserve 20% of each individual’s calls for the query pool, persisting the chosen filenames for downstream scripts.
+- [x] Document the inventory + seed workflow in `data/README.md` so later stages can recreate the same query/mixture partition.
 
-### 1.2 Preprocessing
-- [ ] Write `src/data/preprocess.py` with the following steps:
-  - [ ] Resample all audio to **32 kHz** (PaSST compatibility requirement)
-  - [ ] Convert to mono if multi-channel
-  - [ ] Segment recordings into fixed-length clips (e.g., 4 s) with 50% overlap
-  - [ ] Assign individual identity labels from metadata files
-  - [ ] Filter out clips below an energy threshold (silence removal)
-  - [ ] Save processed clips to `data/processed/<species>/<individual_id>/clip_NNNN.wav`
-- [ ] Write unit test: verify at least N clips per individual, all at 32 kHz
-- [ ] Log summary statistics (clips per individual, total duration) as `data/processed/stats.json`
+### 1.2 Build Session Mixtures
+- [x] Implement `SessionMixer` under `src/data/macaque/session_mixer.py` with callable API (`SessionMixer.generate_session`) that selects two speakers per split, schedules 8–10 s timelines with random 0.2–1.0 s gaps, and records call placements + RNG seed in metadata.
+- [x] Resample calls to 44.1 kHz offline inside this module before building timelines to guarantee consistent sample rates during mixing.
 
-### 1.3 Train / Validation / Test Splits
-- [ ] Define split strategy: **individual-level** (no individual appears in more than one split)
-- [ ] Write `src/data/split.py` to generate reproducible splits (fix random seed)
-- [ ] Save split manifests as `data/processed/splits_<species>.json`
-  - Structure: `{"train": [...], "val": [...], "test": [...]}`
+### 1.3 Save Session Outputs to Disk
+- [x] For each generated timeline pair, sum the two stems into `mixture.wav` and write individual stems alongside it, preserving speaker IDs in filenames (e.g., `individual_03.wav`). Implemented via `src/tools/build_macaque_sessions.py`.
+- [x] Emit a deterministic directory tree:
+  ```
+  macaque_dataset/<split>/mixture_xxxx/
+    mixture.wav
+    individual_YY.wav
+    individual_ZZ.wav
+    metadata.json  # includes sources, call filenames, mixer seed
+  ```
+- [x] Ensure metadata tracks filename lineage (`macaque_raw` → stem WAV → `metadata["stem"]`) so IDs stay queryable throughout Banquet batches. Metadata now stores raw-relative placements plus resolved stem/mixture paths.
 
-### 1.4 Mixture Generation
-- [ ] Write `src/data/mixture.py`:
-  - [ ] For each mixture: randomly draw 2 individuals (one target, one interferer) from the same split
-  - [ ] Randomly select non-overlapping source clips
-  - [ ] Mix at randomized SNR offset ∈ [0, 5] dB (uniform), following BioCPPNet protocol
-  - [ ] Save mixture as `data/mixtures/<split>/<mixture_id>/mix.wav`
-  - [ ] Save clean sources as `s1.wav`, `s2.wav` alongside mixture
-  - [ ] Save metadata as `meta.json` (individual IDs, SNR offset, source clip paths)
-- [ ] Generate N_train, N_val, N_test mixtures (decide counts — suggested: 10k/1k/1k for dolphins)
-- [ ] Write validation notebook: `notebooks/01_data_inspection.ipynb` — visualize spectrograms and confirm mixture quality
+### 1.4 Build Query Clips
+- [ ] Consume only the held-out 20% pool to create ~10 s query clips per individual (multiple clips each) with short inter-call gaps.
+- [ ] Resample to 44.1 kHz on save, storing under `macaque_dataset/queries/<individual_id>/query_clip_##.wav`.
+- [ ] Verify no query clip reuses calls from the mixture pool and log the mapping for reproducibility.
 
-### 1.5 Query Clip Extraction
-- [ ] Write `src/data/query.py`:
-  - [ ] For each mixture, select a **held-out enrollment clip** from the target individual (not used in the mixture)
-  - [ ] Enrollment clips must come from the **same split but different segments**
-  - [ ] Save as `data/mixtures/<split>/<mixture_id>/query.wav`
-- [ ] Verify that no query clip is acoustically identical to any source segment in its associated mixture
+### 1.5 Implement `MacaqueDataset`
+- [ ] Create `core/data/macaque/dataset.py` that loads the directory tree above and returns Banquet-style batches:
+  - `"mixture"` tensor shaped `[1, samples]` at 44.1 kHz.
+  - `"metadata"["stem"]` listing the speaker IDs.
+  - Randomly choose one of the two stems as the current target, load its ground-truth audio tensor `[1, samples]`, and attach under `"target"`.
+  - Sample a random query clip for that individual, tiling or truncating to exactly 441 000 samples (10 s) while keeping `[1, samples]` shape.
+- [ ] Enforce offline sample-rate conversion (no resampling in __getitem__).
+- [ ] Add lightweight tests to confirm tensor shapes and metadata integrity.
+
+### 1.6 Implement `MacaqueDataModule`
+- [ ] Add `core/data/macaque/datamodule.py`, mirroring `MoisesDataModule` patterns for train/val/test dataloaders.
+- [ ] Accept `data_root`, `batch_size`, `num_workers`, and split-specific kwargs (e.g., max mixtures) so Hydra configs can tune them.
+- [ ] Wire datasets via `core/data/base.py::from_datasets`, ensuring Lightning returns `[batch, 1, samples]` mixtures and 441 000-sample queries.
+
+### 1.7 Register and Configure
+- [ ] Import `MacaqueDataModule` in `third_party/query-bandit/train.py` and append it to `ALLOWED_DATAMODULES` (plus the lookup dict).
+- [ ] Add `third_party/query-bandit/config/bandit-macaque.yml` with fields:
+  - `data.cls: MacaqueDataModule`
+  - `data.data_root: <abs path to macaque_dataset>`
+  - `data.batch_size`, `data.num_workers`, and any train/val/test kwargs
+  - `stems: ["individual_00", ..., "individual_07"]`
+- [ ] Document speaker ID expectations inside the config to keep metadata + filenames aligned.
+
+### 1.8 Validate the Datamodule
+- [ ] Run `python train.py train --config_path=./config/bandit-macaque.yml --test_datamodule=true` to exercise all splits without touching model weights.
+- [ ] Acceptance checklist:
+  - [ ] Train/val/test iterators exhaust without errors.
+  - [ ] Mixture tensors are `[batch, 1, samples]` at 44.1 kHz with no runtime resampling.
+  - [ ] Query tensors are exactly 441 000 samples.
+  - [ ] `metadata["stem"]` entries remain valid `individual_##` strings across batches.
+  - [ ] Speaker traceability (raw filename → stem WAV → metadata) holds end-to-end.
 
 ---
 

@@ -9,3 +9,6 @@
 
 # local environment files
 .env
+
+# python
+__pycache__
