@@ -207,18 +207,18 @@
 - [x] Add lightweight tests to confirm tensor shapes and metadata integrity (`tests/test_macaque_dataset.py`).
 
 ### 1.6 Implement `MacaqueDataModule`
-- [ ] Add `core/data/macaque/datamodule.py`, mirroring `MoisesDataModule` patterns for train/val/test dataloaders.
-- [ ] Accept `data_root`, `batch_size`, `num_workers`, and split-specific kwargs (e.g., max mixtures) so Hydra configs can tune them.
-- [ ] Wire datasets via `core/data/base.py::from_datasets`, ensuring Lightning returns `[batch, 1, samples]` mixtures and 441 000-sample queries.
+- [x] Add `core/data/macaque/datamodule.py`, mirroring `MoisesDataModule` patterns for train/val/test dataloaders.
+- [x] Accept `data_root`, `batch_size`, `num_workers`, and split-specific kwargs (e.g., max mixtures) so Hydra configs can tune them.
+- [x] Wire datasets via `core/data/base.py::from_datasets`, ensuring Lightning returns `[batch, 1, samples]` mixtures and 441 000-sample queries.
 
 ### 1.7 Register and Configure
-- [ ] Import `MacaqueDataModule` in `third_party/query-bandit/train.py` and append it to `ALLOWED_DATAMODULES` (plus the lookup dict).
-- [ ] Add `third_party/query-bandit/config/bandit-macaque.yml` with fields:
+- [x] Import `MacaqueDataModule` in `third_party/query-bandit/train.py` and append it to `ALLOWED_DATAMODULES` (plus the lookup dict).
+- [x] Add `third_party/query-bandit/config/bandit-macaque.yml` with fields:
   - `data.cls: MacaqueDataModule`
   - `data.data_root: <abs path to macaque_dataset>`
   - `data.batch_size`, `data.num_workers`, and any train/val/test kwargs
   - `stems: ["individual_00", ..., "individual_07"]`
-- [ ] Document speaker ID expectations inside the config to keep metadata + filenames aligned.
+- [x] Document speaker ID expectations inside the config to keep metadata + filenames aligned.
 
 ### 1.8 Validate the Datamodule
 - [ ] Run `python train.py train --config_path=./config/bandit-macaque.yml --test_datamodule=true` to exercise all splits without touching model weights.

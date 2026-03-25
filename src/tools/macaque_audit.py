@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Dict, List, Mapping, Sequence, Tuple
 
 
-DEFAULT_RAW_ROOT = Path("data/macaque_raw")
-DEFAULT_SPLITS = ("train", "valid")
+DEFAULT_RAW_ROOT = Path("data/datasets/macaque_raw")
+DEFAULT_SPLITS = ("train", "val")
 DEFAULT_QUERY_FRACTION = 0.20
 DEFAULT_MIN_MIXTURE_CALLS = 1
 DEFAULT_EXPECTED_SAMPLE_RATE = 0  # 0 disables enforcement
@@ -40,13 +40,13 @@ def parse_args() -> argparse.Namespace:
         "--raw-root",
         type=Path,
         default=DEFAULT_RAW_ROOT,
-        help="Path to data/macaque_raw containing train/ and valid/ folders.",
+        help="Path to data/datasets/macaque_raw containing train/ and val/ folders.",
     )
     parser.add_argument(
         "--splits",
         nargs="+",
         default=list(DEFAULT_SPLITS),
-        help="Split names to inspect (default: train valid).",
+        help="Split names to inspect (default: train val).",
     )
     parser.add_argument(
         "--seed",

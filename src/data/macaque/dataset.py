@@ -71,6 +71,7 @@ class MacaqueDataset(Dataset):
         self.data_root = Path(data_root)
         self.split = split
         self.split_root = self.data_root / split
+        self._split_candidates = self._build_split_candidates(split)
         self.query_root = (
             Path(query_root) if query_root is not None else self.data_root / "queries"
         )
@@ -83,7 +84,10 @@ class MacaqueDataset(Dataset):
         self.seed = seed
 
         if not self.split_root.exists():
-            raise FileNotFoundError(f"Split directory not found: {self.split_root}")
+            fallback = self._resolve_existing_split_root()
+            if fallback is None:
+                raise FileNotFoundError(f"Split directory not found: {self.split_root}")
+            self.split_root = fallback
 
         self.sessions = self._discover_sessions()
         if not self.sessions:
@@ -132,6 +136,20 @@ class MacaqueDataset(Dataset):
     # ------------------------------------------------------------------
     # Discovery helpers
     # ------------------------------------------------------------------
+    def _build_split_candidates(self, split: str) -> List[str]:
+        if split == "val":
+            return ["val", "valid"]
+        if split == "valid":
+            return ["valid", "val"]
+        return [split]
+
+    def _resolve_existing_split_root(self) -> Optional[Path]:
+        for candidate in self._split_candidates[1:]:
+            candidate_root = self.data_root / candidate
+            if candidate_root.exists():
+                return candidate_root
+        return None
+
     def _discover_sessions(self) -> List[SessionRecord]:
         records: List[SessionRecord] = []
         session_dirs = sorted(
@@ -179,19 +197,26 @@ class MacaqueDataset(Dataset):
         return records
 
     def _discover_queries(self) -> Dict[str, List[Path]]:
-        query_split_dir = self.query_root / self.split
-        if not query_split_dir.exists():
-            raise FileNotFoundError(
-                f"Query split directory not found: {query_split_dir}"
-            )
-
         index: Dict[str, List[Path]] = {}
-        for individual_dir in sorted(query_split_dir.iterdir()):
-            if not individual_dir.is_dir() or individual_dir.name.startswith("."):
+        seen_query_dir = False
+        for split_name in self._split_candidates:
+            query_split_dir = self.query_root / split_name
+            if not query_split_dir.exists():
                 continue
-            wavs = sorted(individual_dir.glob("*.wav"))
-            if wavs:
-                index[individual_dir.name.upper()] = wavs
+            seen_query_dir = True
+            for individual_dir in sorted(query_split_dir.iterdir()):
+                if not individual_dir.is_dir() or individual_dir.name.startswith("."):
+                    continue
+                wavs = sorted(individual_dir.glob("*.wav"))
+                if not wavs:
+                    continue
+                key = individual_dir.name.upper()
+                index.setdefault(key, []).extend(wavs)
+
+        if not seen_query_dir:
+            requested = self.query_root / self.split
+            raise FileNotFoundError(f"Query split directory not found: {requested}")
+
         return index
 
     def _validate_query_coverage(self) -> None:
@@ -211,7 +236,20 @@ class MacaqueDataset(Dataset):
             rel_path = Path(rel)
             if rel_path.is_absolute():
                 return rel_path
-            return (self.data_root / rel_path).resolve()
+            primary = (self.data_root / rel_path).resolve()
+            if primary.exists():
+                return primary
+
+            rel_str = rel_path.as_posix()
+            if "/valid/" in rel_str:
+                alt = (self.data_root / Path(rel_str.replace("/valid/", "/val/"))).resolve()
+                if alt.exists():
+                    return alt
+            if "/val/" in rel_str:
+                alt = (self.data_root / Path(rel_str.replace("/val/", "/valid/"))).resolve()
+                if alt.exists():
+                    return alt
+            return primary
         return fallback.resolve()
 
     # ------------------------------------------------------------------

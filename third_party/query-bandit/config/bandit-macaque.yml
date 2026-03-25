@@ -1,0 +1,35 @@
+seed: 1337
+model: ${oc.env:CONFIG_ROOT}/models/bandit-query-pre.yml
+trainer: ${oc.env:CONFIG_ROOT}/trainer/default.yml
+loss: ${oc.env:CONFIG_ROOT}/losses/both_l1snr.yml
+optim: ${oc.env:CONFIG_ROOT}/optim/adam.yml
+fast_run: false
+
+# Macaque speaker IDs must exactly match stem filenames 
+# (e.g., data/macaque_dataset/train/mixture_xxxx/individual_00.wav).
+stems:
+  - "individual_00"
+  - "individual_01"
+  - "individual_02"
+  - "individual_03"
+  - "individual_04"
+  - "individual_05"
+  - "individual_06"
+  - "individual_07"
+
+data:
+  cls: MacaqueDataModule
+  data_root: ${oc.env:DATA_ROOT}/macaque_dataset
+  batch_size: 4
+  effective_batch_size: null
+  num_workers: 8
+  train_kwargs:
+    speaker_selection: random
+    seed: 1337
+  val_kwargs:
+    speaker_selection: cycle
+    seed: 1337
+  test_kwargs:
+    speaker_selection: first
+    seed: 1337
+  datamodule_kwargs: {}

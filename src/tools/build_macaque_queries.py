@@ -109,16 +109,18 @@ def build_queries(args: argparse.Namespace) -> None:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--raw-root", type=Path, default=Path("data/macaque_raw"))
+    parser.add_argument(
+        "--raw-root", type=Path, default=Path("data/datasets/macaque_raw")
+    )
     parser.add_argument(
         "--query-pool-csv",
         type=Path,
-        default=Path("data/macaque_raw/query_pool.csv"),
+        default=Path("data/datasets/macaque_raw/query_pool.csv"),
     )
     parser.add_argument(
         "--output-root",
         type=Path,
-        default=Path("data/macaque_dataset/queries"),
+        default=Path("data/datasets/macaque_dataset/queries"),
     )
     parser.add_argument(
         "--splits",

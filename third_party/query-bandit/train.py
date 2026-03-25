@@ -17,6 +17,7 @@ from core.data.moisesdb.datamodule import (
     MoisesBalancedTrainDataModule,
     MoisesVDBODataModule,
 )
+from data.macaque.datamodule import MacaqueDataModule
 from core.losses.base import AdversarialLossHandler, BaseLossHandler
 from core.losses.l1snr import (
     L1SNRDecibelMatchLoss,
@@ -74,6 +75,7 @@ ALLOWED_DATAMODULES = [
     MoisesVDBODataModule,
     MoisesValidationDataModule,
     MoisesTestDataModule,
+    MacaqueDataModule,
 ]
 
 ALLOWED_DATAMODULE_DICT = _allowed_classes_to_dict(ALLOWED_DATAMODULES)
