@@ -48,25 +48,28 @@ def input_dict(
     modality: str = "audio",
 ) -> RawInputType:
 
+    def _to_owned_float_tensor(x: Any) -> torch.Tensor:
+        # Clone to detach from NumPy-backed, non-resizable storage so default
+        # DataLoader collation can allocate shared-memory batches safely.
+        return torch.as_tensor(x, dtype=torch.float32).clone().contiguous()
+
     out = {
-        "estimates": {
-            k: {
-                modality: torch.empty(
-                    0,
-                )
-            }
-            for k, v in sources.items()
-        }
+        # Estimates are produced by the model later in the pipeline.
+        # Keep placeholders tensor-free so DataLoader collation does not
+        # attempt to stack zero-length tensors across worker processes.
+        "estimates": {k: {} for k in (sources or {}).keys()}
     }
 
     if mixture is not None:
-        out["mixture"] = {modality: torch.from_numpy(mixture).to(torch.float32)}
+        out["mixture"] = {modality: _to_owned_float_tensor(mixture)}
 
     if sources is not None:
-        out["sources"] = {k: {modality: torch.from_numpy(v).to(torch.float32)} for k, v in sources.items()}
+        out["sources"] = {
+            k: {modality: _to_owned_float_tensor(v)} for k, v in sources.items()
+        }
 
     if query is not None:
-        out["query"] = {modality: torch.from_numpy(query).to(torch.float32)}
+        out["query"] = {modality: _to_owned_float_tensor(query)}
 
     if metadata is not None:
         out["metadata"] = metadata

@@ -221,13 +221,42 @@
 - [x] Document speaker ID expectations inside the config to keep metadata + filenames aligned.
 
 ### 1.8 Validate the Datamodule
-- [ ] Run `python train.py train --config_path=./config/bandit-macaque.yml --test_datamodule=true` to exercise all splits without touching model weights.
-- [ ] Acceptance checklist:
-  - [ ] Train/val/test iterators exhaust without errors.
-  - [ ] Mixture tensors are `[batch, 1, samples]` at 44.1 kHz with no runtime resampling.
-  - [ ] Query tensors are exactly 441 000 samples.
-  - [ ] `metadata["stem"]` entries remain valid `individual_##` strings across batches.
-  - [ ] Speaker traceability (raw filename → stem WAV → metadata) holds end-to-end.
+- [x] Run `python train.py train --config_path=./config/bandit-macaque.yml --test_datamodule=true` to exercise all splits without touching model weights.
+- [x] Acceptance checklist:
+  - [x] Train/val/test iterators exhaust without errors.
+  - [x] Mixture tensors are `[batch, 1, samples]` at 44.1 kHz with no runtime resampling.
+  - [x] Query tensors are exactly 441 000 samples.
+  - [x] `metadata["stem"]` entries remain valid `individual_##` strings across batches.
+  - [x] Speaker traceability (raw filename → stem WAV → metadata) holds end-to-end.
+
+### 1.9 Zero-Modification Baseline Run (As-Is Query-Bandit)
+- [ ] Lock baseline scope: run pretrained Query-Bandit on macaque data without changing model architecture, losses, or training code.
+- [ ] Define run identifiers and artifacts:
+  - [ ] `BASELINE_CONFIG=third_party/query-bandit/config/bandit-macaque.yml`
+  - [ ] `BASELINE_CKPT=<path to selected pretrained checkpoint>`
+  - [ ] `BASELINE_TAG=<short run id, e.g. macaque-zs-v1>`
+- [ ] Execute objective metrics pass (no training):
+  ```bash
+  python third_party/query-bandit/train.py query_test \
+    --config_path=${BASELINE_CONFIG} \
+    --ckpt_path=${BASELINE_CKPT}
+  ```
+- [ ] Execute audio export pass for qualitative review:
+  ```bash
+  python third_party/query-bandit/train.py query_inference \
+    --config_path=${BASELINE_CONFIG} \
+    --ckpt_path=${BASELINE_CKPT}
+  ```
+- [ ] Save baseline outputs under a dedicated folder in `LOG_ROOT` and record:
+  - [ ] command lines used
+  - [ ] config path
+  - [ ] checkpoint hash/path
+  - [ ] environment variables (`CONFIG_ROOT`, `DATA_ROOT`, `LOG_ROOT`)
+- [ ] Summarize first-pass baseline quality:
+  - [ ] aggregate test metrics from logger CSV
+  - [ ] 5–10 qualitative examples (mixture / target / estimate)
+  - [ ] note obvious failure modes (identity mismatch, leakage, silence collapse)
+- [ ] Decide go/no-go for Phase 2 training baselines based on this zero-shot reference.
 
 ---
 

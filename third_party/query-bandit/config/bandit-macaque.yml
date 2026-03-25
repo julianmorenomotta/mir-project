@@ -22,14 +22,17 @@ data:
   data_root: ${oc.env:DATA_ROOT}/macaque_dataset
   batch_size: 4
   effective_batch_size: null
-  num_workers: 8
+  num_workers: 0
   train_kwargs:
     speaker_selection: random
+    mixture_duration_sec: 10.0
     seed: 1337
   val_kwargs:
     speaker_selection: cycle
+    mixture_duration_sec: 10.0
     seed: 1337
   test_kwargs:
     speaker_selection: first
+    mixture_duration_sec: 10.0
     seed: 1337
   datamodule_kwargs: {}

@@ -4,6 +4,7 @@ import json
 import random
 import sys
 from dataclasses import dataclass
+import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -56,6 +57,7 @@ class MacaqueDataset(Dataset):
         query_root: Optional[Path | str] = None,
         target_sample_rate: int = 44_100,
         query_duration_sec: float = 10.0,
+        mixture_duration_sec: Optional[float] = None,
         speaker_selection: str = "random",
         seed: int = 1337,
     ) -> None:
@@ -68,17 +70,31 @@ class MacaqueDataset(Dataset):
                 "speaker_selection must be one of {'random', 'cycle', 'first'}."
             )
 
-        self.data_root = Path(data_root)
+        self.data_root = Path(data_root).expanduser().resolve()
         self.split = split
         self.split_root = self.data_root / split
         self._split_candidates = self._build_split_candidates(split)
-        self.query_root = (
-            Path(query_root) if query_root is not None else self.data_root / "queries"
-        )
+        if query_root is None:
+            self.query_root = self.data_root / "queries"
+        else:
+            candidate_query_root = Path(query_root).expanduser()
+            if not candidate_query_root.is_absolute():
+                candidate_query_root = candidate_query_root.resolve()
+            self.query_root = candidate_query_root
         self.target_sample_rate = int(target_sample_rate)
         self.query_duration_sec = float(query_duration_sec)
         self.query_num_samples = int(
             round(self.query_duration_sec * self.target_sample_rate)
+        )
+        self.mixture_duration_sec = (
+            float(mixture_duration_sec) if mixture_duration_sec is not None else None
+        )
+        if self.mixture_duration_sec is not None and self.mixture_duration_sec <= 0:
+            raise ValueError("mixture_duration_sec must be positive when provided.")
+        self.mixture_num_samples = (
+            int(round(self.mixture_duration_sec * self.target_sample_rate))
+            if self.mixture_duration_sec is not None
+            else None
         )
         self.speaker_selection = speaker_selection
         self.seed = seed
@@ -108,6 +124,9 @@ class MacaqueDataset(Dataset):
         mixture = self._load_wave(session.mixture_path)
         target = self._load_wave(target_path)
         mixture, target = self._align_lengths(mixture, target)
+        if self.mixture_num_samples is not None:
+            mixture = self._pad_or_trim(mixture, self.mixture_num_samples)
+            target = self._pad_or_trim(target, self.mixture_num_samples)
 
         query = self._load_wave(query_path)
         query = self._pad_or_trim(query, self.query_num_samples)
@@ -115,14 +134,21 @@ class MacaqueDataset(Dataset):
         metadata = {
             "split": self.split,
             "session_id": session.session_id,
-            "session_dir": session.session_dir.relative_to(self.data_root).as_posix(),
-            "mixture_file": session.mixture_path.relative_to(self.data_root).as_posix(),
-            "target_file": target_path.relative_to(self.data_root).as_posix(),
-            "query_file": query_path.relative_to(self.query_root).as_posix(),
+            "session_dir": self._path_relative_to_root(
+                session.session_dir, self.data_root
+            ),
+            "mixture_file": self._path_relative_to_root(
+                session.mixture_path, self.data_root
+            ),
+            "target_file": self._path_relative_to_root(target_path, self.data_root),
+            "query_file": self._path_relative_to_root(query_path, self.query_root),
             "speakers": session.speakers,
             "target_speaker": speaker_id,
             "stem": speaker_id,
-            "session_metadata": session.metadata,
+            # Keep nested, speaker-keyed metadata as a string so default
+            # DataLoader collation does not require identical dict keys
+            # across all samples in the batch.
+            "session_metadata_json": json.dumps(session.metadata, sort_keys=True),
         }
 
         return input_dict(
@@ -242,15 +268,27 @@ class MacaqueDataset(Dataset):
 
             rel_str = rel_path.as_posix()
             if "/valid/" in rel_str:
-                alt = (self.data_root / Path(rel_str.replace("/valid/", "/val/"))).resolve()
+                alt = (
+                    self.data_root / Path(rel_str.replace("/valid/", "/val/"))
+                ).resolve()
                 if alt.exists():
                     return alt
             if "/val/" in rel_str:
-                alt = (self.data_root / Path(rel_str.replace("/val/", "/valid/"))).resolve()
+                alt = (
+                    self.data_root / Path(rel_str.replace("/val/", "/valid/"))
+                ).resolve()
                 if alt.exists():
                     return alt
             return primary
         return fallback.resolve()
+
+    def _path_relative_to_root(self, path: Path, root: Path) -> str:
+        try:
+            return path.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            return os.path.relpath(path.resolve(), start=root.resolve()).replace(
+                "\\", "/"
+            )
 
     # ------------------------------------------------------------------
     # Selection logic
