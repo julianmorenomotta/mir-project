@@ -27,5 +27,5 @@ kwargs:
   pad_mode: "reflect"
   onesided: true
   fs: 44100
-  pretrain_encoder: /storage/home/hcoda1/1/kwatchar3/data/logs/e2e/lightning_logs/bandit-vdbo-gru-aug/checkpoints/epoch=99-step=204800.ckpt
+  pretrain_encoder: null
   freeze_encoder: false

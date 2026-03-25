@@ -16,7 +16,12 @@ from tqdm import tqdm
 
 from torch.nn import functional as F
 
-from core.types import BatchedInputOutput, OperationMode, RawInputType, SimpleishNamespace
+from core.types import (
+    BatchedInputOutput,
+    OperationMode,
+    RawInputType,
+    SimpleishNamespace,
+)
 from core.types import (
     InputType,
     OutputType,
@@ -67,16 +72,21 @@ class EndToEndLightningSystem(pl.LightningModule):
         self.commitment_weight = commitment_weight
 
         self.batch_size = batch_size
-        self.effective_batch_size = effective_batch_size if effective_batch_size is not None else batch_size
-        self.accum_ratio = self.effective_batch_size // self.batch_size if self.effective_batch_size is not None else 1
+        self.effective_batch_size = (
+            effective_batch_size if effective_batch_size is not None else batch_size
+        )
+        self.accum_ratio = (
+            self.effective_batch_size // self.batch_size
+            if self.effective_batch_size is not None
+            else 1
+        )
 
         self.output_dir = None
         self.split_size = None
 
     def configure_optimizers(self) -> Any:
         optimizer = self.optimization.optimizer.cls(
-            self.model.parameters(),
-            **self.optimization.optimizer.kwargs
+            self.model.parameters(), **self.optimization.optimizer.kwargs
         )
 
         ret = {
@@ -85,17 +95,14 @@ class EndToEndLightningSystem(pl.LightningModule):
 
         if self.optimization.scheduler is not None:
             scheduler = self.optimization.scheduler.cls(
-                optimizer,
-                **self.optimization.scheduler.kwargs
+                optimizer, **self.optimization.scheduler.kwargs
             )
             ret["lr_scheduler"] = scheduler
 
         return ret
 
     def compute_loss(
-        self,
-        batch: BatchedInputOutput,
-        mode=OperationMode.TRAIN
+        self, batch: BatchedInputOutput, mode=OperationMode.TRAIN
     ) -> LossOutputType:
         loss_dict = self.loss(batch)
         return loss_dict
@@ -157,7 +164,9 @@ class EndToEndLightningSystem(pl.LightningModule):
 
         self.model.train()
 
-        loss_dict = self.common_step(batch, mode=OperationMode.TRAIN, batch_idx=batch_idx)
+        loss_dict = self.common_step(
+            batch, mode=OperationMode.TRAIN, batch_idx=batch_idx
+        )
 
         self.log_dict_with_prefix(loss_dict, prefix=OperationMode.TRAIN, prog_bar=True)
 
@@ -202,50 +211,49 @@ class EndToEndLightningSystem(pl.LightningModule):
         )
         self.reset_metrics(mode=OperationMode.VAL)
 
-    
     def save_to_audio(self, batch: BatchedInputOutput, batch_idx: int) -> None:
-        
+
         batch_size = batch["mixture"]["audio"].shape[0]
-        
+
         assert batch_size == 1, "Batch size must be 1 for inference"
-        
+
         metadata = batch.metadata
-        
+
         song_id = metadata["mix"][0]
         stem = metadata["stem"][0]
-        
+
         log_dir = os.path.join(self.logger.log_dir, "audio")
-        
+
         os.makedirs(os.path.join(log_dir, song_id), exist_ok=True)
-        
+
         audio = batch.estimates[stem]["audio"]
-        
+
         audio = audio.squeeze(0).cpu().numpy()
-        
+
         audio_path = os.path.join(log_dir, song_id, f"{stem}.wav")
-        
+
         ta.save(audio_path, torch.tensor(audio), self.inference.fs)
 
     def save_vdbo_to_audio(self, batch: BatchedInputOutput, batch_idx: int) -> None:
-        
+
         batch_size = batch["mixture"]["audio"].shape[0]
-        
+
         assert batch_size == 1, "Batch size must be 1 for inference"
-        
+
         metadata = batch.metadata
-        
+
         song_id = metadata["song_id"][0]
-        
+
         log_dir = os.path.join(self.logger.log_dir, "audio")
-        
+
         os.makedirs(os.path.join(log_dir, song_id), exist_ok=True)
-        
+
         for stem, audio in batch.estimates.items():
             audio = audio["audio"]
             audio = audio.squeeze(0).cpu().numpy()
-            
+
             audio_path = os.path.join(log_dir, song_id, f"{stem}.wav")
-            
+
             ta.save(audio_path, torch.tensor(audio), self.inference.fs)
 
     @torch.inference_mode()
@@ -253,76 +261,72 @@ class EndToEndLightningSystem(pl.LightningModule):
         self, batch: RawInputType, batch_idx: int = -1, dataloader_idx: int = 0
     ) -> BatchedInputOutput:
         batch = BatchedInputOutput.from_dict(batch)
-        
+
         audio = batch["mixture"]["audio"]
-        
+
         b, c, n_samples = audio.shape
-        
+
         assert b == 1
 
         fs = self.inference.fs
 
         chunk_size = int(self.inference.chunk_size_seconds * fs)
         hop_size = int(self.inference.hop_size_seconds * fs)
-        
+
         batch_size = self.inference.batch_size
-        
+
         overlap = chunk_size - hop_size
-        
+
         scaler = chunk_size / (2 * hop_size)
 
-        n_chunks = int(math.ceil(
-            (n_samples + 4 * overlap - chunk_size) / hop_size
-        )) + 1
-        
+        n_chunks = int(math.ceil((n_samples + 4 * overlap - chunk_size) / hop_size)) + 1
+
         pad = (n_chunks - 1) * hop_size + chunk_size - n_samples
 
         # print(audio.shape)
         left_pad = 2 * overlap
         right_pad = 2 * overlap + pad
-        pad_mode = "reflect" if (left_pad < n_samples and right_pad < n_samples) else "constant"
-        audio = F.pad(
-            audio,
-            pad=(left_pad, right_pad),
-            mode=pad_mode,
-            value=0
-)
+        pad_mode = (
+            "reflect"
+            if (left_pad < n_samples and right_pad < n_samples)
+            else "constant"
+        )
+        audio = F.pad(audio, pad=(left_pad, right_pad), mode=pad_mode, value=0)
         padded_length = audio.shape[-1]
         audio = audio.reshape(c, 1, -1, 1)
-        
+
         chunked_audio = F.unfold(
-            audio,
-            kernel_size=(chunk_size, 1), 
-            stride=(hop_size, 1)
-        ) # (c, chunk_size, n_chunk)
+            audio, kernel_size=(chunk_size, 1), stride=(hop_size, 1)
+        )  # (c, chunk_size, n_chunk)
 
         # print(chunked_audio.shape)
 
         chunked_audio = chunked_audio.permute(2, 0, 1).reshape(-1, c, chunk_size)
-        
+
         n_chunks = chunked_audio.shape[0]
-        
+
         n_batch = math.ceil(n_chunks / batch_size)
 
         outputs = []
-        
+
         for i in tqdm(range(n_batch)):
             start = i * batch_size
             end = min((i + 1) * batch_size, n_chunks)
-            
+
             chunked_batch = SimpleishNamespace(
-                mixture={
-                    "audio": chunked_audio[start:end]
-                },
+                mixture={"audio": chunked_audio[start:end]},
                 query=batch["query"],
-                estimates=batch["estimates"]
+                # estimates=batch["estimates"],
+                estimates={"target": {}},
             )
-            
+
             output = self.forward(chunked_batch)
             outputs.append(output.estimates["target"]["audio"])
 
-        output = torch.cat(outputs, dim=0) # (n_chunks, c, chunk_size)
-        window = torch.hann_window(chunk_size, device=self.device).reshape(1, 1, chunk_size)
+        output = torch.cat(outputs, dim=0)  # (n_chunks, c, chunk_size)
+        window = torch.hann_window(chunk_size, device=self.device).reshape(
+            1, 1, chunk_size
+        )
         output = output * window / scaler
 
         output = torch.permute(output, (1, 2, 0))
@@ -331,16 +335,15 @@ class EndToEndLightningSystem(pl.LightningModule):
             output,
             output_size=(padded_length, 1),
             kernel_size=(chunk_size, 1),
-            stride=(hop_size, 1)
-        ) # (c, 1, t, 1)
+            stride=(hop_size, 1),
+        )  # (c, 1, t, 1)
 
-        output = output[None, :, 0, 2*overlap: n_samples + 2*overlap, 0]
+        output = output[None, :, 0, 2 * overlap : n_samples + 2 * overlap, 0]
 
         stem = batch.metadata["stem"][0]
 
-        batch["estimates"][stem] = {
-            "audio": output
-        }
+        batch["estimates"]["target"] = {"audio": output}
+        batch["estimates"][stem] = {"audio": output}
 
         return batch
 
@@ -348,75 +351,67 @@ class EndToEndLightningSystem(pl.LightningModule):
         self, batch: RawInputType, batch_idx: int = -1, dataloader_idx: int = 0
     ) -> BatchedInputOutput:
         batch = BatchedInputOutput.from_dict(batch)
-        
+
         audio = batch["mixture"]["audio"]
-        
+
         b, c, n_samples = audio.shape
-        
+
         assert b == 1
 
         fs = self.inference.fs
 
         chunk_size = int(self.inference.chunk_size_seconds * fs)
         hop_size = int(self.inference.hop_size_seconds * fs)
-        
+
         batch_size = self.inference.batch_size
-        
+
         overlap = chunk_size - hop_size
-        
+
         scaler = chunk_size / (2 * hop_size)
 
-        n_chunks = int(math.ceil(
-            (n_samples + 4 * overlap - chunk_size) / hop_size
-        )) + 1
-        
+        n_chunks = int(math.ceil((n_samples + 4 * overlap - chunk_size) / hop_size)) + 1
+
         pad = (n_chunks - 1) * hop_size + chunk_size - n_samples
 
         # print(audio.shape)
-        audio = F.pad(
-            audio,
-            pad=(2 * overlap, 2 * overlap + pad),
-            mode="reflect"
-        )
+        audio = F.pad(audio, pad=(2 * overlap, 2 * overlap + pad), mode="reflect")
         padded_length = audio.shape[-1]
         audio = audio.reshape(c, 1, -1, 1)
-        
+
         chunked_audio = F.unfold(
-            audio,
-            kernel_size=(chunk_size, 1), 
-            stride=(hop_size, 1)
-        ) # (c, chunk_size, n_chunk)
+            audio, kernel_size=(chunk_size, 1), stride=(hop_size, 1)
+        )  # (c, chunk_size, n_chunk)
 
         # print(chunked_audio.shape)
 
         chunked_audio = chunked_audio.permute(2, 0, 1).reshape(-1, c, chunk_size)
-        
+
         n_chunks = chunked_audio.shape[0]
-        
+
         n_batch = math.ceil(n_chunks / batch_size)
 
         outputs = defaultdict(list)
-        
+
         for i in tqdm(range(n_batch)):
             start = i * batch_size
             end = min((i + 1) * batch_size, n_chunks)
-            
+
             chunked_batch = SimpleishNamespace(
-                mixture={
-                    "audio": chunked_audio[start:end]
-                },
-                estimates=batch["estimates"]
+                mixture={"audio": chunked_audio[start:end]},
+                estimates=batch["estimates"],
             )
-            
+
             output = self.forward(chunked_batch)
-            
+
             for stem, estimate in output.estimates.items():
                 outputs[stem].append(estimate["audio"])
 
-        for stem, outputs_ in outputs.items():                
+        for stem, outputs_ in outputs.items():
 
-            output = torch.cat(outputs_, dim=0) # (n_chunks, c, chunk_size)
-            window = torch.hann_window(chunk_size, device=self.device).reshape(1, 1, chunk_size)
+            output = torch.cat(outputs_, dim=0)  # (n_chunks, c, chunk_size)
+            window = torch.hann_window(chunk_size, device=self.device).reshape(
+                1, 1, chunk_size
+            )
             output = output * window / scaler
 
             output = torch.permute(output, (1, 2, 0))
@@ -425,17 +420,14 @@ class EndToEndLightningSystem(pl.LightningModule):
                 output,
                 output_size=(padded_length, 1),
                 kernel_size=(chunk_size, 1),
-                stride=(hop_size, 1)
-            ) # (c, 1, t, 1)
+                stride=(hop_size, 1),
+            )  # (c, 1, t, 1)
 
-            output = output[None, :, 0, 2*overlap: n_samples + 2*overlap, 0]
+            output = output[None, :, 0, 2 * overlap : n_samples + 2 * overlap, 0]
 
-            batch["estimates"][stem] = {
-                "audio": output
-            }
+            batch["estimates"][stem] = {"audio": output}
 
         return batch
-
 
     def on_test_epoch_start(self) -> None:
         self.reset_metrics(mode=OperationMode.TEST)
@@ -445,18 +437,19 @@ class EndToEndLightningSystem(pl.LightningModule):
     ) -> Any:
 
         self.model.eval()
-        
+
         if "query" in batch.keys():
             batch = self.chunked_inference(batch, batch_idx, dataloader_idx)
         else:
             batch = self.chunked_vdbo_inference(batch, batch_idx, dataloader_idx)
-        
+
         self.reset_metrics(mode=OperationMode.TEST)
         self.update_metrics(batch, mode=OperationMode.TEST)
         metrics = self.compute_metrics(mode=OperationMode.TEST)
         # metrics["song_id"] = batch.metadata["mix"][0]
-        self.log_dict_with_prefix(metrics, OperationMode.TEST, 
-                                  on_step=True, on_epoch=False, prog_bar=True)
+        self.log_dict_with_prefix(
+            metrics, OperationMode.TEST, on_step=True, on_epoch=False, prog_bar=True
+        )
         self.reset_metrics(mode=OperationMode.TEST)
 
         # pprint(metrics)
@@ -464,6 +457,19 @@ class EndToEndLightningSystem(pl.LightningModule):
         return batch
 
     def on_test_epoch_end(self) -> None:
+        # metric_dict = self.compute_metrics(mode=OperationMode.TEST)
+        # prefixed = {f"{OperationMode.TEST}/{k}": v for k, v in metric_dict.items()}
+        # self.log_dict_with_prefix(
+        #     metric_dict,
+        #     OperationMode.TEST,
+        #     on_step=False,
+        #     on_epoch=True,
+        #     prog_bar=True,
+        #     add_dataloader_idx=False,
+        # )
+        # if hasattr(self.logger, "log_metrics"):
+        #     self.logger.log_metrics(prefixed, step=self.global_step)
+        #     self.logger.save()
         self.reset_metrics(mode=OperationMode.TEST)
 
     def set_output_path(self, output_dir: str) -> None:
@@ -474,10 +480,10 @@ class EndToEndLightningSystem(pl.LightningModule):
     ) -> Any:
 
         self.model.eval()
-        
-        if "query" in batch.keys():    
+
+        if "query" in batch.keys():
             batch = self.chunked_inference(batch, batch_idx, dataloader_idx)
-            
+
             self.save_to_audio(batch, batch_idx)
         else:
             batch = self.chunked_vdbo_inference(batch, batch_idx, dataloader_idx)
@@ -496,7 +502,6 @@ class EndToEndLightningSystem(pl.LightningModule):
         **kwargs: Any,
     ) -> None:
 
-        
         self.log_dict(
             {f"{prefix}/{k}": v for k, v in dict_.items()},
             batch_size=batch_size,

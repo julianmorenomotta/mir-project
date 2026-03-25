@@ -334,6 +334,13 @@ class MacaqueDataset(Dataset):
             audio = audio[np.newaxis, :]
         else:
             audio = audio.T
+
+        if audio.shape[0] == 1:
+            audio = np.repeat(audio, 2, axis=0)
+        elif audio.shape[0] > 2:
+            mono = audio.mean(axis=0, keepdims=True)
+            audio = np.repeat(mono, 2, axis=0)
+
         return np.ascontiguousarray(audio, dtype=np.float32)
 
     def _align_lengths(
