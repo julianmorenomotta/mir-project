@@ -38,6 +38,12 @@ source .env
 
 ## 2) Raw Data Prerequisites
 
+You can download the raw data using this:
+
+```bash
+wget https://archive.org/download/macaque_coo_calls/macaques.zip && unzip -q macaques.zip
+```
+
 Place source audio under:
 
 ```text
