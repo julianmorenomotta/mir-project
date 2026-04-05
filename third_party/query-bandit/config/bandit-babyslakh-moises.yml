@@ -1,0 +1,21 @@
+seed: 1337
+model: ${oc.env:CONFIG_ROOT}/models/bandit-query-pre.yml
+trainer: ${oc.env:CONFIG_ROOT}/trainer/default.yml
+loss: ${oc.env:CONFIG_ROOT}/losses/both_l1snr.yml
+optim: ${oc.env:CONFIG_ROOT}/optim/adam.yml
+fast_run: false
+
+stems:
+  - "drums"
+  - "bass_guitar"
+  - "acoustic_guitar"
+  - "grand_piano"
+  - "organ_electric_organ"
+  - "synth_lead"
+  - "synth_pad"
+  - "string_section"
+  - "brass"
+  - "fx"
+  - "pitched_percussion"
+
+data: ${oc.env:CONFIG_ROOT}/data/babyslakh-test.yml

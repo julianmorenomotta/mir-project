@@ -1,0 +1,30 @@
+data_root: ${oc.env:DATA_ROOT}/babyslakh_16k
+cls: MoisesTestDataModule
+batch_size: 1
+effective_batch_size: null
+num_workers: 1
+
+inference_kwargs:
+  chunk_size_seconds: 6.0
+  hop_size_seconds: 0.5
+  batch_size: 1
+  fs: 44100
+
+test_kwargs:
+  npy_memmap: true
+  mixture_stem: mixture
+  use_own_query: false
+  allowed_stems:
+    - "drums"
+    - "bass_guitar"
+    - "acoustic_guitar"
+    - "grand_piano"
+    - "organ_electric_organ"
+    - "synth_lead"
+    - "synth_pad"
+    - "string_section"
+    - "brass"
+    - "fx"
+    - "pitched_percussion"
+  query_file: "query-10s"
+n_channels: 2

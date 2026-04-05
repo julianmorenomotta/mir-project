@@ -13,8 +13,8 @@
 2. [Project Overview](#1-project-overview)
 3. [Milestone Map](#2-milestone-map)
 4. [Phase A — Scope & Environment Freeze](#phase-a--scope--environment-freeze)
-5. [Phase B — BabySlakh Eval Data Preparation](#phase-b--babyslakh-eval-data-preparation)
-6. [Phase C — Config & Smoke Validation](#phase-c--config--smoke-validation)
+5. [Phase B — Moises-Style Artifact Contract](#phase-b--moises-style-artifact-contract)
+6. [Phase C — Metadata and Index Build](#phase-c--metadata-and-index-build)
 7. [Phase D — Researcher Pipeline Execution](#phase-d--researcher-pipeline-execution)
 8. [Phase E — Reporting & Interpretation](#phase-e--reporting--interpretation)
 9. [Phase F — Reproducibility Closeout](#phase-f--reproducibility-closeout)
@@ -23,12 +23,13 @@
 
 ---
 
-## 0. Current Main Focus (April 5 2026)
+## 0. Current Main Focus
 
 **Priority override:** The active objective right now is to complete a same-afternoon, evaluation-only **zero-shot generalization test** of Query-Bandit on an unseen musical dataset, starting with BabySlakh. Until this is complete, this workstream is the sole active plan.
 
 **Target outcome (first pass):**
 - End-to-end pretrained evaluation on BabySlakh (all available tracks)
+- Moises-compatible BabySlakh artifacts: `npy2/`, `npyq/`, `splits.csv`, `stems.csv`, `durations.csv`, `test_indices.csv`
 - Built-in query-bandit test metrics from `query_test`
 - Notebook-style metric summary from saved inference audio
 - Clear notes on what can and cannot be concluded from this first-pass OOD test
@@ -36,38 +37,42 @@
 **Included in scope now:**
 - Evaluation-only path (no training)
 - BabySlakh-only first pass using all available tracks
+- Reuse of Moises-style data path (`MoisesTestDataModule` + `MoisesDBFullTrackTestQueryDataset`)
 - Reuse of researcher testing entrypoints in `third_party/query-bandit/train.py`
-- Minimal data preparation required to make BabySlakh compatible with query-bandit evaluation flow
+- Minimal adaptation scripts required to transform BabySlakh into Moises-compatible artifacts
+ 
 
-**Out of scope now:**
-- Any model training/fine-tuning or architecture changes
-- Multi-dataset benchmarking beyond BabySlakh
-- Full paper replication claims
-
-### 0.1 Immediate Execution Checklist (This Afternoon)
+### 0.1 Immediate Execution Checklist 
 
 #### Phase A: Freeze run scope and reproducibility envelope
-- [ ] Set run identifiers and constants:
-  - [ ] `EVAL_TAG=<short run id, e.g. babyslakh-zs-v1>`
-  - [ ] `EVAL_CONFIG=third_party/query-bandit/config/bandit-babyslakh.yml`
-  - [ ] `EVAL_CKPT=models/ev-pre-aug.ckpt` (or exact selected checkpoint path)
-- [ ] Standardize env vars for this run:
-  - [ ] `CONFIG_ROOT=third_party/query-bandit/config`
-  - [ ] `DATA_ROOT=<parent of babyslakh working root>`
-  - [ ] `LOG_ROOT=<writable local output root>`
+- [x] Set run identifiers and constants:
+  - [x] `EVAL_TAG=babyslakh-zs-v1`
+  - [ ] `EVAL_CONFIG=third_party/query-bandit/config/bandit-babyslakh-moises.yml`
+  - [x] `EVAL_CKPT=models/ev-pre-aug.ckpt` (or exact selected checkpoint path)
+- [x] Standardize env vars for this run:
+  - [x] `CONFIG_ROOT=third_party/query-bandit/config`
+  - [x] `DATA_ROOT=data/datasets`
+  - [x] `LOG_ROOT=data/logs`
 
-#### Phase B: Prepare BabySlakh in query-bandit-compatible eval layout
-- [ ] Use all available BabySlakh tracks under `data/datasets/babyslakh_16k/`
-- [ ] Materialize/verify evaluation-ready structure at `${DATA_ROOT}/babyslakh_16k`:
-  - [ ] `test/mixture_xxxxx/{mixture.wav, individual_*.wav, metadata.json}`
-  - [ ] `queries/<individual_or_target_id>/query_*.wav`
-- [ ] Verify each test sample has a valid target-query pairing and metadata lineage (track + stem origin)
-- [ ] Validate sample-rate assumptions used by the chosen config (explicitly document any resampling)
+#### Phase B: Define and materialize Moises-style BabySlakh artifacts
+- [x] Use all available BabySlakh tracks under `data/datasets/babyslakh_16k/`
+- [ ] Materialize/verify artifact structure at `${DATA_ROOT}/babyslakh_16k`:
+  - [ ] `npy2/<song_id>/<stem>.npy` (full-track stems + `mixture.npy`)
+  - [ ] `npyq/<song_id>/<stem>.query-10s.npy` (10 s onset-based query segments)
+  - [ ] `splits.csv`, `stems.csv`, `durations.csv`, `test_indices.csv`
+- [ ] Enforce 44.1 kHz-equivalent sample timeline for all generated arrays (BabySlakh source is 16 kHz, must be resampled)
+- [ ] Verify per-song stem arrays are length-aligned and saved as float32
 
-#### Phase C: Make pretrained eval config runnable for BabySlakh
-- [ ] Create `third_party/query-bandit/config/bandit-babyslakh.yml` from `third_party/query-bandit/config/bandit-macaque.yml`
-- [ ] Point `data.data_root` to BabySlakh working root and set evaluation-safe data/test kwargs
-- [ ] Confirm stem/target naming used in config matches generated metadata/query directories
+#### Phase C: Build metadata/index and config wiring for Moises test loader
+- [ ] Create `src/tools/build_babyslakh_metadata.py` to emit:
+  - [ ] `splits.csv` with BabySlakh tracks assigned to test fold (`split=5`)
+  - [ ] `stems.csv` binary instrument-presence matrix with Moises-compatible stem names
+  - [ ] `durations.csv`
+  - [ ] `test_indices.csv` rows (`song_id`, `query_id`, `stem`) compatible with Moises test dataset
+- [ ] Create `src/tools/babyslakh_npyify.py` to emit `npy2/` and `npyq/` using onset-based `query-10s` extraction policy
+- [ ] Create `third_party/query-bandit/config/data/babyslakh-test.yml` from `third_party/query-bandit/config/data/moisesdb-test.yml`
+- [ ] Create top-level eval config `third_party/query-bandit/config/bandit-babyslakh-moises.yml` that points to the BabySlakh Moises-style data config
+- [ ] Confirm `allowed_stems` in config is a subset of columns in `stems.csv` and matches filenames in `npy2/` and `npyq/`
 - [ ] Run smoke load test: instantiate model + load `${EVAL_CKPT}` successfully
 
 #### Phase D: Execute researcher test pipeline
@@ -100,7 +105,8 @@
 - [ ] Mark completed afternoon tasks with initials/date in this plan
 
 ### 0.2 Success Criteria for this focus
-- [ ] End-to-end run succeeds on BabySlakh using pretrained checkpoint and researcher evaluation entrypoints
+- [ ] End-to-end run succeeds on BabySlakh using pretrained checkpoint and Moises-style researcher evaluation path
+- [ ] Moises-compatible BabySlakh artifacts are complete and schema-valid (`npy2`, `npyq`, CSV indices)
 - [ ] Built-in query_test metrics and notebook-compatible inference outputs are generated
 - [ ] First-pass results table is produced with reproducibility metadata and caveats
 
@@ -128,16 +134,16 @@
 
 ## 2. Milestone Map
 
-| Milestone | Description | Target | Status |
-|-----------|-------------|--------|--------|
-| M-A | Scope/env freeze completed and run identifiers set | This afternoon | ⬜ |
-| M-B | BabySlakh evaluation dataset layout validated | This afternoon | ⬜ |
-| M-C | BabySlakh eval config created and smoke-tested | This afternoon | ⬜ |
-| M-D | query_test and query_inference completed | This afternoon | ⬜ |
-| M-E | Notebook summary and results table produced | This afternoon | ⬜ |
-| M-F | Reproducibility notes and caveats logged | This afternoon | ⬜ |
+| Milestone | Description | Status |
+|-----------|-------------|--------|
+| M-A | Scope/env freeze completed and run identifiers set | ⬜ |
+| M-B | Moises-style BabySlakh artifacts generated and validated | ⬜ |
+| M-C | BabySlakh Moises-style configs created and smoke-tested | ⬜ |
+| M-D | query_test and query_inference completed | ⬜ |
+| M-E | Notebook summary and results table produced | ⬜ |
+| M-F | Reproducibility notes and caveats logged | ⬜ |
 
-> Status key: ⬜ not started · 🔄 in progress · ✅ done · 🚫 blocked
+> Status key: ⬜ not started · 🔄 in progress · ✅ done 
 
 ---
 
@@ -145,27 +151,40 @@
 
 - [ ] Set run identifiers and constants:
   - [ ] `EVAL_TAG=<short run id, e.g. babyslakh-zs-v1>`
-  - [ ] `EVAL_CONFIG=third_party/query-bandit/config/bandit-babyslakh.yml`
+  - [ ] `EVAL_CONFIG=third_party/query-bandit/config/bandit-babyslakh-moises.yml`
   - [ ] `EVAL_CKPT=models/ev-pre-aug.ckpt` (or exact selected checkpoint path)
 - [ ] Standardize env vars:
   - [ ] `CONFIG_ROOT=third_party/query-bandit/config`
   - [ ] `DATA_ROOT=<parent of babyslakh working root>`
   - [ ] `LOG_ROOT=<writable local output root>`
 
-## Phase B — BabySlakh Eval Data Preparation
+## Phase B — Moises-Style Artifact Contract
 
 - [ ] Use all available BabySlakh tracks under `data/datasets/babyslakh_16k/`
-- [ ] Materialize/verify evaluation-ready structure at `${DATA_ROOT}/babyslakh_16k`:
-  - [ ] `test/mixture_xxxxx/{mixture.wav, individual_*.wav, metadata.json}`
-  - [ ] `queries/<individual_or_target_id>/query_*.wav`
-- [ ] Verify each test sample has a valid target-query pairing and metadata lineage (track + stem origin)
-- [ ] Validate sample-rate assumptions used by the chosen config (document any resampling)
 
-## Phase C — Config & Smoke Validation
+- [ ] Materialize/verify required structure at `${DATA_ROOT}/babyslakh_16k`:
+  - [ ] `npy2/<song_id>/<stem>.npy`
+  - [ ] `npyq/<song_id>/<stem>.query-10s.npy`
+  - [ ] `splits.csv`
+  - [ ] `stems.csv`
+  - [ ] `durations.csv`
+  - [ ] `test_indices.csv`
+- [ ] Ensure each song has `mixture.npy` and aligned stem lengths in `npy2/`
+- [ ] Ensure each (`query_id`, `stem`) pair referenced in `test_indices.csv` exists in `npyq/`
+- [ ] Enforce 44.1 kHz-equivalent timeline after resampling and save all arrays as float32
 
-- [ ] Create `third_party/query-bandit/config/bandit-babyslakh.yml` from `third_party/query-bandit/config/bandit-macaque.yml`
-- [ ] Point `data.data_root` to BabySlakh working root and set evaluation-safe data/test kwargs
-- [ ] Confirm stem/target naming in config matches generated metadata/query directories
+## Phase C — Metadata and Index Build
+
+- [ ] Implement `src/tools/build_babyslakh_metadata.py`:
+  - [ ] parse BabySlakh `metadata.yaml`
+  - [ ] map instrument classes to Moises-compatible stem names
+  - [ ] emit `splits.csv`, `stems.csv`, `durations.csv`, `test_indices.csv`
+- [ ] Implement `src/tools/babyslakh_npyify.py`:
+  - [ ] convert/resample WAV stems to Moises-style `npy2/`
+  - [ ] generate onset-based `query-10s` segments into `npyq/`
+- [ ] Create `third_party/query-bandit/config/data/babyslakh-test.yml` from `third_party/query-bandit/config/data/moisesdb-test.yml`
+- [ ] Create `third_party/query-bandit/config/bandit-babyslakh-moises.yml` from `third_party/query-bandit/config/bandit-macaque.yml`
+- [ ] Validate `allowed_stems` consistency across config, `stems.csv`, `npy2`, and `npyq`
 - [ ] Run smoke load test: instantiate model + load `${EVAL_CKPT}` successfully
 
 ## Phase D — Researcher Pipeline Execution
@@ -208,9 +227,10 @@
 
 | # | Question | Decision | Resolved By | Date |
 |---|----------|----------|-------------|------|
-| 1 | Which checkpoint should be treated as primary for this afternoon run? | `models/ev-pre-aug.ckpt` unless smoke test fails | — | — |
-| 2 | What BabySlakh stem mapping policy should be used for target/query ids? | TBD | — | — |
-| 3 | Should we report only built-in metrics or include notebook summary from saved audio? | Include both for this first pass | — | — |
+| 1 | Which checkpoint should be treated as primary for this afternoon run? | `models/ev-pre-aug.ckpt` unless smoke test fails | J | 
+| 2 | What BabySlakh-to-Moises stem mapping policy should be used for `stems.csv` and `allowed_stems`? | `stems.csv` | J | 
+| 3 | Should we report only built-in metrics or include notebook summary from saved audio? | Include both for this first pass | J | 
+| 4 | Should initial `test_indices.csv` use self-query pairs (`query_id=song_id`) only for smoke validation? | Yes, then add cross-track pairs | J |
 
 ---
 
