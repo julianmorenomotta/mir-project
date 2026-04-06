@@ -1,0 +1,88 @@
+seed: 1337
+model:
+  cls: PasstFiLMConditionedBandit
+  kwargs:
+    in_channel: 2
+    band_type: musical
+    n_bands: 64
+    additive_film: true
+    multiplicative_film: true
+    film_depth: 2
+    n_sqm_modules: 8
+    emb_dim: 128
+    rnn_dim: 256
+    bidirectional: true
+    rnn_type: GRU
+    mlp_dim: 512
+    hidden_activation: Tanh
+    hidden_activation_kwargs: null
+    complex_mask: true
+    use_freq_weights: true
+    n_fft: 2048
+    win_length: 2048
+    hop_length: 512
+    window_fn: hann_window
+    wkwargs: null
+    power: null
+    center: true
+    normalized: true
+    pad_mode: reflect
+    onesided: true
+    fs: 44100
+    pretrain_encoder: null
+    freeze_encoder: false
+trainer:
+  callbacks:
+    checkpoint:
+      monitor: val/loss
+      mode: min
+      save_top_k: 3
+      save_last: true
+  max_epochs: 150
+  accumulate_grad_batches: null
+  gradient_clip_val: 10.0
+  gradient_clip_algorithm: norm
+  logger:
+    save_dir: /home/julian/julian/projects/smc-master/mir/mir-project/data/logs/e2e
+loss:
+  cls: L1SNRLoss
+  modality:
+  - audio
+  - spectrogram
+optim:
+  optimizer:
+    cls: Adam
+    kwargs:
+      lr: 0.001
+  scheduler:
+    cls: StepLR
+    kwargs:
+      step_size: 1
+      gamma: 0.98
+fast_run: false
+stems:
+- target
+data:
+  cls: MacaqueDataModule
+  data_root: /home/julian/julian/projects/smc-master/mir/mir-project/data/datasets/macaque_dataset
+  batch_size: 1
+  effective_batch_size: null
+  num_workers: 0
+  inference_kwargs:
+    chunk_size_seconds: 6.0
+    hop_size_seconds: 0.5
+    batch_size: 1
+    fs: 44100
+  train_kwargs:
+    speaker_selection: random
+    mixture_duration_sec: 10.0
+    seed: 1337
+  val_kwargs:
+    speaker_selection: cycle
+    mixture_duration_sec: 10.0
+    seed: 1337
+  test_kwargs:
+    speaker_selection: first
+    mixture_duration_sec: 10.0
+    seed: 1337
+  datamodule_kwargs: {}

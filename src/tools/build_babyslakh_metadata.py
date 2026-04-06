@@ -53,6 +53,17 @@ class TrackSpec:
     stems: List[StemSpec]
 
 
+def _available_mapped_stems(track: TrackSpec) -> Set[str]:
+    present: Set[str] = set()
+    for stem in track.stems:
+        if stem.mapped_stem is None:
+            continue
+        wav_path = track.track_dir / "stems" / f"{stem.stem_id}.wav"
+        if wav_path.exists():
+            present.add(stem.mapped_stem)
+    return present
+
+
 def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip().lower())
 
@@ -156,7 +167,7 @@ def _write_stems(
         writer.writerow(["song_id", *all_stems])
 
         for track in tracks:
-            present = {s.mapped_stem for s in track.stems if s.mapped_stem}
+            present = _available_mapped_stems(track)
             row = [track.song_id]
             for stem in all_stems:
                 row.append("1" if stem in present else "0")
@@ -173,7 +184,7 @@ def _write_test_indices(
     song_to_stems: Dict[str, List[str]] = {}
 
     for track in tracks:
-        present = sorted({s.mapped_stem for s in track.stems if s.mapped_stem})
+        present = sorted(_available_mapped_stems(track))
         present = [stem for stem in present if stem in allowed_stems]
         song_to_stems[track.song_id] = present
         for stem in present:
@@ -201,23 +212,37 @@ def _write_test_indices(
 
 def _summarize_unmapped(tracks: Sequence[TrackSpec]) -> None:
     unmapped_counts: Dict[str, int] = defaultdict(int)
+    missing_wav_counts: Dict[str, int] = defaultdict(int)
     for track in tracks:
         for stem in track.stems:
             if stem.mapped_stem is None:
                 key = stem.inst_class or "<missing>"
                 unmapped_counts[key] += 1
+                continue
+
+            wav_path = track.track_dir / "stems" / f"{stem.stem_id}.wav"
+            if not wav_path.exists():
+                missing_wav_counts[stem.mapped_stem] += 1
 
     if not unmapped_counts:
         print("[OK] All BabySlakh inst_class values were mapped.")
-        return
+    else:
+        print(
+            "[WARN] Unmapped inst_class values detected (excluded from stems.csv/test_indices):"
+        )
+        for inst_class, count in sorted(
+            unmapped_counts.items(), key=lambda x: (-x[1], x[0])
+        ):
+            print(f"  - {inst_class}: {count}")
 
-    print(
-        "[WARN] Unmapped inst_class values detected (excluded from stems.csv/test_indices):"
-    )
-    for inst_class, count in sorted(
-        unmapped_counts.items(), key=lambda x: (-x[1], x[0])
-    ):
-        print(f"  - {inst_class}: {count}")
+    if missing_wav_counts:
+        print(
+            "[WARN] Mapped stems missing source WAV files (excluded from stems.csv/test_indices):"
+        )
+        for stem_name, count in sorted(
+            missing_wav_counts.items(), key=lambda x: (-x[1], x[0])
+        ):
+            print(f"  - {stem_name}: {count}")
 
 
 def build_metadata(args: argparse.Namespace) -> None:
@@ -231,12 +256,7 @@ def build_metadata(args: argparse.Namespace) -> None:
     tracks = _discover_tracks(input_root, stem_map, selected_tracks)
 
     discovered_stems = sorted(
-        {
-            stem.mapped_stem
-            for track in tracks
-            for stem in track.stems
-            if stem.mapped_stem is not None
-        }
+        {stem_name for track in tracks for stem_name in _available_mapped_stems(track)}
     )
 
     allowed_stems = (
