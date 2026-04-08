@@ -6,17 +6,16 @@ import argparse
 import json
 import random
 import sys
-import torch  # noqa: F401 (used for typing and ensuring dependency presence)
+import torch  # noqa: F401 (used for typing )
 import torchaudio
 from pathlib import Path
 from typing import Sequence
+from data.macaque.query_builder import QueryBuilder
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
-
-from data.macaque.query_builder import QueryBuilder
 
 
 def save_audio(path: Path, waveform, sample_rate: int) -> None:

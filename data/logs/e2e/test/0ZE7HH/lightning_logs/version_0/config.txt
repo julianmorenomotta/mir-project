@@ -1,0 +1,1 @@
+/home/julian/julian/projects/smc-master/mir/mir-project/models/ev-pre-aug.ckpt

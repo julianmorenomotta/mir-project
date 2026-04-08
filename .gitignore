@@ -2,7 +2,9 @@
 /venv/
 
 # data 
-/data/*
+/data/datasets
+/data/output
+
 
 # models
 /models/
